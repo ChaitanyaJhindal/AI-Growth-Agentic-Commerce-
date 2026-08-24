@@ -1,5 +1,6 @@
 import os
 import uuid
+import traceback
 from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -73,7 +74,6 @@ async def handle_chat(req: ChatRequest):
         # Invoke LangGraph agent app
         result_state = agent_app.invoke(input_state, config=config)
 
-        # Sanitize search results and upsells
         search_results = [serialize_doc(p) for p in result_state.get("search_results", [])]
         upsell_results = [serialize_doc(p) for p in result_state.get("upsell_results", [])]
         selected_product = serialize_doc(result_state["selected_product"]) if result_state.get("selected_product") else None
@@ -93,7 +93,24 @@ async def handle_chat(req: ChatRequest):
             "conversation_history": result_state.get("conversation_history", [])
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Agent workflow error: {str(e)}")
+        traceback.print_exc()
+        # Fallback to direct hybrid search if agent LLM has a temporary glitch
+        engine = get_search_engine()
+        results = engine.hybrid_search(req.message, limit=15)
+        return {
+            "thread_id": thread_id,
+            "intent": "search",
+            "current_query": req.message,
+            "filters": {},
+            "needs_clarification": False,
+            "clarification_question": None,
+            "clarification_count": 0,
+            "validation_result": {"validated": True, "explanation": "Fallback hybrid search"},
+            "search_results": [serialize_doc(p) for p in results],
+            "selected_product": None,
+            "upsell_results": [],
+            "conversation_history": []
+        }
 
 
 @app.post("/api/clarify")
@@ -125,7 +142,21 @@ async def handle_clarification(req: ClarificationReplyRequest):
             "selected_product": serialize_doc(result_state["selected_product"]) if result_state.get("selected_product") else None
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        traceback.print_exc()
+        engine = get_search_engine()
+        results = engine.hybrid_search(req.answer, limit=15)
+        return {
+            "thread_id": req.thread_id,
+            "intent": "search",
+            "current_query": req.answer,
+            "filters": {},
+            "needs_clarification": False,
+            "clarification_question": None,
+            "validation_result": {"validated": True, "explanation": "Fallback search"},
+            "search_results": [serialize_doc(p) for p in results],
+            "upsell_results": [],
+            "selected_product": None
+        }
 
 
 @app.post("/api/outfit")
@@ -154,22 +185,28 @@ async def generate_outfit_for_product(req: OutfitRequest):
         "conversation_history": []
     }
 
-    res = upsell_agent_node(mock_state)
-    return {
-        "selected_product": selected,
-        "outfit_pairings": [serialize_doc(p) for p in res.get("upsell_results", [])]
-    }
+    try:
+        res = upsell_agent_node(mock_state)
+        return {
+            "selected_product": selected,
+            "outfit_pairings": [serialize_doc(p) for p in res.get("upsell_results", [])]
+        }
+    except Exception as e:
+        print(f"Notice on outfit API: {e}")
+        return {
+            "selected_product": selected,
+            "outfit_pairings": []
+        }
 
 
 @app.get("/api/trending")
 async def get_trending_curations():
     """
-    Returns curated editorial items across footwear, apparel, and watches for the discovery page.
+    Returns curated editorial items across footwear, apparel, and accessories for the discovery page.
     """
     engine = get_search_engine()
     trending_items = []
     
-    # 2 top items from Footwear, Apparel, Watches
     for cat in ["Footwear", "Apparel", "Accessories"]:
         items = list(engine.collection.find(
             {"master_category": cat, "rating": {"$gte": 4.0}},
@@ -204,5 +241,5 @@ app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn
-    print("Starting AURA FastAPI server on http://localhost:8000...")
+    print("Starting AURA FastAPI server on http://127.0.0.1:8000...")
     uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)

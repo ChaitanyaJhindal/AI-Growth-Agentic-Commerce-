@@ -10,6 +10,24 @@ def serialize_doc(doc: dict) -> dict:
         doc["_id"] = str(doc["_id"])
     return doc
 
+# Common synonyms and catalog normalization mapping
+ARTICLE_TYPE_SYNONYMS = {
+    "sneakers": ["Casual Shoes", "Sports Shoes"],
+    "sneaker": ["Casual Shoes", "Sports Shoes"],
+    "running shoes": ["Sports Shoes"],
+    "running shoe": ["Sports Shoes"],
+    "trainer": ["Sports Shoes", "Casual Shoes"],
+    "trainers": ["Sports Shoes", "Casual Shoes"],
+    "watch": ["Watches"],
+    "watches": ["Watches"],
+    "tshirt": ["Tshirts"],
+    "t-shirt": ["Tshirts"],
+    "tee": ["Tshirts"],
+    "shirt": ["Shirts"],
+    "denim": ["Jeans"],
+    "pants": ["Trousers", "Track Pants", "Jeans"]
+}
+
 class ProductHybridSearchEngine:
     """Combines Atlas Vector Search + MongoDB Text Search + Metadata Filtering via RRF."""
 
@@ -33,15 +51,27 @@ class ProductHybridSearchEngine:
         in_stock: bool = False,
         min_rating: Optional[float] = None
     ) -> Dict[str, Any]:
-        """Constructs MongoDB query filters."""
+        """Constructs robust MongoDB query filters."""
         query = {}
         for field, val in [
             ("brand", brand), ("gender", gender), ("master_category", master_category),
-            ("sub_category", sub_category), ("article_type", article_type),
-            ("base_color", base_color), ("season", season), ("usage", usage)
+            ("sub_category", sub_category), ("base_color", base_color),
+            ("season", season), ("usage", usage)
         ]:
             if val:
                 query[field] = val.strip()
+
+        # Handle article_type normalization
+        if article_type:
+            norm_key = article_type.strip().lower()
+            if norm_key in ARTICLE_TYPE_SYNONYMS:
+                syns = ARTICLE_TYPE_SYNONYMS[norm_key]
+                if len(syns) == 1:
+                    query["article_type"] = syns[0]
+                else:
+                    query["article_type"] = {"$in": syns}
+            else:
+                query["article_type"] = article_type.strip()
 
         price = {}
         if min_price is not None: price["$gte"] = float(min_price)
@@ -104,7 +134,7 @@ class ProductHybridSearchEngine:
         rrf_k: int = 60,
         limit: int = 10
     ) -> List[dict]:
-        """Fuses Vector Search + Keyword Search with Reciprocal Rank Fusion (RRF)."""
+        """Fuses Vector Search + Keyword Search with Reciprocal Rank Fusion (RRF) & Smart Fallback."""
         vec_results = self.vector_search(query, filter_dict=filter_dict, limit=limit * 3)
         kw_results = self.keyword_search(query, filter_dict=filter_dict, limit=limit * 3)
 
@@ -131,4 +161,17 @@ class ProductHybridSearchEngine:
             ranked.append(doc)
 
         ranked.sort(key=lambda x: x["rrf_score"], reverse=True)
+
+        # Smart Fallback: If strict filtering returned 0 results, relax constraints gracefully
+        if not ranked and filter_dict:
+            relaxed_filters = {}
+            if "gender" in filter_dict: relaxed_filters["gender"] = filter_dict["gender"]
+            if "master_category" in filter_dict: relaxed_filters["master_category"] = filter_dict["master_category"]
+            if "price" in filter_dict: relaxed_filters["price"] = filter_dict["price"]
+            
+            if relaxed_filters != filter_dict:
+                return self.hybrid_search(query, filter_dict=relaxed_filters, limit=limit)
+            else:
+                return self.hybrid_search(query, filter_dict=None, limit=limit)
+
         return ranked[:limit]

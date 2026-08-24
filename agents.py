@@ -35,29 +35,27 @@ def get_search_engine() -> ProductHybridSearchEngine:
 
 
 # =====================================================================
-# 1. Query Agent (with Conversation History Awareness)
+# 1. Query Agent (with Context-Aware Filter Management)
 # =====================================================================
 
 def query_agent_node(state: AgentState) -> Dict[str, Any]:
     """
-    Parses user input using conversational history context to handle
-    follow-up refinements, product selections, or new searches.
+    Parses user input using conversational history context.
+    Properly resets filters on new searches while preserving them on refinements.
     """
     user_query = state.get("current_query") or state.get("original_query", "")
     history = state.get("conversation_history", [])
     prev_results = state.get("search_results", [])
     prev_filters = state.get("filters", {})
 
-    # Format previous dialogue turns
     dialogue_context = ""
     if history:
         formatted_turns = [f"{turn.get('role', 'user').capitalize()}: {turn.get('content', '')}" for turn in history[-4:]]
         dialogue_context = "\nRecent Conversation History:\n" + "\n".join(formatted_turns)
 
-    # Format previous search results context if available
     results_context = ""
     if prev_results:
-        summary_lines = [f"{i}. [{p.get('product_id')}] {p.get('name')} (${p.get('price')})" for i, p in enumerate(prev_results[:5], 1)]
+        summary_lines = [f"{i}. [{p.get('product_id')}] {p.get('name')} (${p.get('price')})" for i, p in enumerate(prev_results[:4], 1)]
         results_context = "\nPrevious Search Results Visible to User:\n" + "\n".join(summary_lines)
 
     prompt = f"""You are an Expert Conversational E-Commerce Fashion Parser.
@@ -75,16 +73,16 @@ Catalog Knowledge:
 - Articles: Tshirts, Shirts, Jeans, Casual Shoes, Sports Shoes, Watches, Bags, Track Pants, Jackets, Socks, etc.
 - Colors: Black, Blue, Navy Blue, White, Grey, Red, Green, Silver, etc.
 
-Tasks:
-1. Determine if this is a new search, a refinement of the previous query (e.g. "make it blue", "under 50", "show only Puma"), or a product selection (e.g. "I like #2", "recommend outfit for product 1").
-2. If it is a refinement, merge with previous dialogue intent.
-3. If user selected a specific product number from previous search results, set selected_product_index (1-based).
-4. Output a cleaned, standalone search query and updated filter constraints.
+Critical Instructions:
+1. Determine if this message is a **new_search** (user is searching for a new item/category) OR a **refinement** (user is modifying the existing search like "only blue", "under 50", "show in Nike").
+2. Set intent = 'search' if it is a new search, or 'filter_refinement' if modifying the previous search.
+3. If it is a new search, DO NOT carry over unrelated filters from the previous turn.
+4. Output a standalone cleaned search query.
 """
     structured_llm = llm.with_structured_output(QueryAnalysis)
     analysis: QueryAnalysis = structured_llm.invoke(prompt)
 
-    # Compile new filters
+    # Build fresh filters for the current query
     engine = get_search_engine()
     new_filters = engine.build_filter(
         brand=analysis.brand,
@@ -97,9 +95,12 @@ Tasks:
         in_stock=analysis.in_stock_only
     )
 
-    # Merge with previous filters if this was a refinement
-    merged_filters = prev_filters.copy()
-    merged_filters.update(new_filters)
+    # Clean filter management: Only merge previous filters if user is refining
+    if analysis.intent in ["filter_refinement", "refinement"] and prev_filters:
+        merged_filters = prev_filters.copy()
+        merged_filters.update(new_filters)
+    else:
+        merged_filters = new_filters
 
     # Handle selected product if user picked an item
     selected_prod = state.get("selected_product")
@@ -108,7 +109,6 @@ Tasks:
         if 0 <= idx < len(prev_results):
             selected_prod = prev_results[idx]
 
-    # Update conversation history
     updated_history = list(history)
     updated_history.append({"role": "user", "content": user_query})
 
@@ -134,7 +134,6 @@ def context_agent_node(state: AgentState) -> Dict[str, Any]:
     current_query = state.get("current_query", "")
     filters = state.get("filters", {})
 
-    # If user selected a product directly for upsell, skip search clarification
     if state.get("selected_product"):
         return {
             "needs_clarification": False,
@@ -159,10 +158,11 @@ Current Filters: {filters}
 Clarification Rounds So Far: {clarification_count}/2
 
 Rules:
-1. Specific requests (e.g. "men running shoes under $80", "blue denim shirt", "silver watch") -> has_sufficient_context = True.
-2. Vague requests (e.g. "I want sneakers", "party clothes", "something to wear") -> has_sufficient_context = False.
+1. If the request has clear intent (e.g. "women running shoes", "casual blue shirt", "black watch"), set has_sufficient_context = True.
+2. If the request is severely vague with zero specifics (e.g. just "I want clothes", "give me something"):
+   - Set has_sufficient_context = False.
    - Generate exactly ONE concise follow-up question.
-3. If clear, do NOT ask unnecessary questions.
+3. If the user mentions a category (e.g. "watch", "shoes", "jeans"), it IS sufficient to perform an initial search unless completely meaningless.
 """
     structured_llm = llm.with_structured_output(ContextEvaluation)
     eval_result: ContextEvaluation = structured_llm.invoke(prompt)
@@ -202,7 +202,6 @@ def search_node(state: AgentState) -> Dict[str, Any]:
     Executes hybrid search against MongoDB Atlas.
     Deterministic execution without LLM hallucination.
     """
-    # If a product is already selected and intent is purely upsell, reuse existing search results
     if state.get("selected_product") and state.get("intent") == "select_product":
         return {"search_results": state.get("search_results", [])}
 
@@ -241,7 +240,7 @@ def validation_agent_node(state: AgentState) -> Dict[str, Any]:
             return {
                 "validation_result": {
                     "validated": False,
-                    "explanation": "No products found matching filters.",
+                    "explanation": "No products found matching filters, relaxing constraints.",
                     "retry_count": retry_count + 1
                 },
                 "current_query": original_query,
@@ -251,21 +250,21 @@ def validation_agent_node(state: AgentState) -> Dict[str, Any]:
             return {
                 "validation_result": {
                     "validated": True,
-                    "explanation": "Search complete with 0 matching items.",
+                    "explanation": "Search complete with available matches.",
                     "retry_count": retry_count
                 }
             }
 
     product_summaries = []
-    for p in results[:5]:
+    for p in results[:4]:
         product_summaries.append(
             f"- [{p.get('product_id')}] {p.get('name')} | Brand: {p.get('brand')} | Gender: {p.get('gender')} | "
-            f"Type: {p.get('article_type')} | Color: {p.get('base_color')} | Price: ${p.get('price')} | Rating: {p.get('rating')}"
+            f"Type: {p.get('article_type')} | Price: ${p.get('price')}"
         )
     catalog_snippet = "\n".join(product_summaries)
 
     prompt = f"""You are an E-Commerce Product Quality Validator.
-Verify if the retrieved products satisfy the user's request and constraints.
+Verify if the retrieved products satisfy the user's request.
 
 Original Request: "{original_query}"
 Current Search Term: "{current_query}"
@@ -273,9 +272,8 @@ Top Products:
 {catalog_snippet}
 
 Tasks:
-1. Verify category, gender, attributes, and price constraints.
-2. If satisfied, set validated = True.
-3. If mismatched, set validated = False, explain why, and provide a rewritten_query.
+1. If products are relevant to the request, set validated = True.
+2. If completely unrelated, set validated = False and rewrite query.
 """
     structured_llm = llm.with_structured_output(ValidationDecision)
     decision: ValidationDecision = structured_llm.invoke(prompt)
@@ -289,10 +287,6 @@ Tasks:
             }
         }
     else:
-        new_filters = state.get("filters", {}).copy()
-        if decision.adjusted_filters:
-            new_filters.update(decision.adjusted_filters)
-
         return {
             "validation_result": {
                 "validated": False,
@@ -300,7 +294,7 @@ Tasks:
                 "retry_count": retry_count + 1
             },
             "current_query": decision.rewritten_query or original_query,
-            "filters": new_filters
+            "filters": {}
         }
 
 
@@ -347,7 +341,7 @@ def upsell_agent_node(state: AgentState) -> Dict[str, Any]:
             gender=gender if gender in ["Men", "Women"] else None,
             in_stock=True
         )
-        cat_query = f"{usage} {season} {cat}"
+        cat_query = f"{usage} {season} {cat}".strip()
         found = engine.hybrid_search(query=cat_query, filter_dict=cat_filters, limit=3)
         candidates.extend(found)
 
@@ -365,21 +359,17 @@ def upsell_agent_node(state: AgentState) -> Dict[str, Any]:
 Recommend the best complementary items to complete an outfit with the customer's selected item.
 
 Selected Item:
-- ID: {selected.get('product_id')}
 - Name: {selected.get('name')}
 - Category: {article_type}
 - Color: {color}
 - Gender: {gender}
-- Season: {season}
 - Usage: {usage}
-- Price: ${selected.get('price')}
 
-Available Candidate Items:
+Candidate Items:
 {candidate_text}
 
 Task:
-Select the top 2-3 most harmonious complementary products.
-Explain why their color, style, usage, and category pair together.
+Select the top 2-3 most harmonious complementary products and provide stylist reasoning.
 """
     structured_llm = llm.with_structured_output(UpsellAnalysis)
     try:
@@ -395,7 +385,6 @@ Explain why their color, style, usage, and category pair together.
                 item_data["stylist_note"] = rec.stylist_note
                 upsell_list.append(item_data)
 
-        # Append assistant summary to history
         updated_history = list(state.get("conversation_history", []))
         summary = f"Found {len(state.get('search_results', []))} products and {len(upsell_list)} stylist outfit pairings."
         updated_history.append({"role": "assistant", "content": summary})
