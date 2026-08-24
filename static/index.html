@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AURA — AI-Native Luxury Fashion Concierge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="aura-nav">
+    <div class="nav-left">
+      <a href="#" class="brand-logo" id="nav-brand">AURA</a>
+      <span class="brand-tagline">AI Concierge</span>
+    </div>
+    
+    <nav class="nav-center">
+      <button class="nav-link active" id="tab-discover">Discover</button>
+      <button class="nav-link" id="tab-wardrobe">Wardrobe <span class="badge" id="wardrobe-count">0</span></button>
+      <button class="nav-link" id="tab-concierge">Concierge</button>
+    </nav>
+
+    <div class="nav-right">
+      <div class="currency-tag">USD ($)</div>
+      <button class="bag-btn" id="open-bag-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <path d="M16 10a4 4 0 0 1-8 0"></path>
+        </svg>
+        <span class="bag-count" id="bag-count">0</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Application Container -->
+  <main class="aura-container">
+
+    <!-- HERO / AI DISCOVERY SECTION -->
+    <section class="hero-section" id="hero-section">
+      <div class="hero-header">
+        <span class="hero-kicker">PERSONAL AI STYLIST & CURATOR</span>
+        <h1 class="hero-title">What are you envisioning today?</h1>
+        <p class="hero-subtitle">Describe an aesthetic, occasion, or outfit naturally. Our agentic system will understand, filter, and compose tailored looks for you.</p>
+      </div>
+
+      <!-- Natural Language Central Input Surface -->
+      <div class="ai-input-surface" id="input-surface">
+        <div class="input-wrapper">
+          <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input 
+            type="text" 
+            id="query-input" 
+            placeholder="e.g., 'Minimal black running sneakers under $80' or 'Blue casual linen shirt for dinner'" 
+            autocomplete="off"
+          />
+          <button class="voice-btn" id="voice-btn" title="Voice Input">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+          </button>
+          <button class="submit-btn" id="submit-btn">
+            <span>Inquire</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Intelligent Suggestion Chips -->
+        <div class="suggestion-chips">
+          <span class="chips-label">Try asking:</span>
+          <button class="chip" data-prompt="Comfortable running shoes for men under $80">Running shoes under $80</button>
+          <button class="chip" data-prompt="Casual blue denim shirt for men">Casual blue shirt</button>
+          <button class="chip" data-prompt="Silver watch for women under $100">Silver watch for women</button>
+          <button class="chip" data-prompt="I want sneakers">Vague query (Clarification test)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- AI PROCESSING STATE BANNER (Progressive Revelation) -->
+    <div class="ai-processing-card" id="ai-processing-card" style="display: none;">
+      <div class="processing-header">
+        <div class="pulse-dot"></div>
+        <span class="processing-title" id="processing-title">Agent Pipeline Active...</span>
+      </div>
+      <div class="processing-steps" id="processing-steps">
+        <div class="step active" id="step-1">1. Query Agent: Parsing intent & fashion attributes</div>
+        <div class="step" id="step-2">2. Context Agent: Verifying specificity & constraints</div>
+        <div class="step" id="step-3">3. Search Node: Executing Atlas Hybrid Vector & Keyword Search</div>
+        <div class="step" id="step-4">4. Validation Agent: Checking product satisfaction</div>
+        <div class="step" id="step-5">5. Upsell Agent: Styling matching outfit combinations</div>
+      </div>
+    </div>
+
+    <!-- CLARIFICATION QUESTION MODAL / CARD -->
+    <div class="clarification-card" id="clarification-card" style="display: none;">
+      <div class="clarification-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B87A44" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+      </div>
+      <div class="clarification-content">
+        <span class="clarification-kicker">AI CONTEXT CLARIFICATION</span>
+        <h3 class="clarification-question" id="clarification-question-text">Are you looking for Men's or Women's sneakers?</h3>
+        <p class="clarification-hint">Select a quick option or type your response below to guide your stylist:</p>
+        
+        <div class="clarification-options" id="clarification-options">
+          <button class="clarify-pill" data-answer="For Men, budget under $80">Men's under $80</button>
+          <button class="clarify-pill" data-answer="For Women, casual everyday">Women's casual</button>
+          <button class="clarify-pill" data-answer="Running sneakers under $100">Running under $100</button>
+        </div>
+
+        <div class="clarification-input-row">
+          <input type="text" id="clarify-input" placeholder="Or type your specific requirement..." />
+          <button class="btn-primary" id="clarify-submit-btn">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEARCH RESULTS & ACTIVE INTERPRETATION SECTION -->
+    <section class="results-section" id="results-section" style="display: none;">
+      
+      <!-- AI Interpretation & Active Constraints Header -->
+      <div class="ai-interpretation-bar">
+        <div class="interpretation-top">
+          <div>
+            <h2 class="interpretation-headline" id="interpretation-headline">15 Curated Selections Found</h2>
+            <p class="interpretation-sub" id="interpretation-sub">Prioritizing clean silhouettes, neutral palettes, and verified catalog inventory.</p>
+          </div>
+          <div class="validation-badge" id="validation-badge">
+            <span class="dot"></span>
+            <span id="validation-text">Validated by AI</span>
+          </div>
+        </div>
+
+        <!-- Removable Active Constraint Pills -->
+        <div class="active-filters-row" id="active-filters-row">
+          <!-- Dynamic filter pills generated by JS -->
+        </div>
+      </div>
+
+      <!-- Asymmetric Editorial Products Grid -->
+      <div class="products-grid" id="products-grid">
+        <!-- Product Cards injected via JavaScript -->
+      </div>
+    </section>
+
+    <!-- EDITORIAL DISCOVERY SECTION (Shown on initial home load) -->
+    <section class="editorial-home" id="editorial-home">
+      <div class="section-title-row">
+        <div>
+          <span class="kicker">CURATED EDITORIAL</span>
+          <h2 class="section-title">The Minimalist Capsule</h2>
+        </div>
+        <div class="section-action">Autumn / Winter Essentials</div>
+      </div>
+
+      <div class="editorial-grid" id="editorial-grid">
+        <!-- Curated items loaded from /api/trending -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- "COMPLETE THE LOOK" / OUTFIT STUDIO MODAL -->
+  <div class="modal-overlay" id="outfit-modal" style="display: none;">
+    <div class="outfit-modal-content">
+      <button class="modal-close-btn" id="modal-close-btn">&times;</button>
+      
+      <div class="modal-header">
+        <span class="kicker">AI FASHION STYLIST STUDIO</span>
+        <h2 class="modal-title">Complete The Look</h2>
+        <p class="modal-subtitle">A harmonious 3-to-4 piece modular ensemble curated specifically for your selected item.</p>
+      </div>
+
+      <div class="outfit-studio-body">
+        <!-- Left: Selected Anchor Item -->
+        <div class="anchor-item-panel" id="anchor-item-panel">
+          <!-- Dynamic Anchor details -->
+        </div>
+
+        <!-- Right: Outfit Ensemble & Stylist Insight -->
+        <div class="ensemble-panel">
+          <div class="stylist-insight-box">
+            <div class="insight-title">Stylist Rationale & Tonal Harmony</div>
+            <p class="insight-text" id="stylist-insight-text">Loading styling recommendation...</p>
+          </div>
+
+          <h3 class="ensemble-subtitle">Matching Outfit Pieces</h3>
+          <div class="ensemble-cards-list" id="ensemble-cards-list">
+            <!-- Dynamic complementary pieces with swap buttons -->
+          </div>
+
+          <div class="ensemble-checkout-bar">
+            <div class="total-box">
+              <span class="total-label">Complete Outfit Price</span>
+              <span class="total-price" id="ensemble-total-price">$0.00</span>
+            </div>
+            <button class="btn-primary" id="buy-complete-look-btn">Add Entire Look to Bag</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHOPPING BAG DRAWER -->
+  <div class="drawer-overlay" id="bag-drawer" style="display: none;">
+    <div class="drawer-panel">
+      <div class="drawer-header">
+        <h2>Shopping Bag (<span id="drawer-bag-count">0</span>)</h2>
+        <button class="drawer-close-btn" id="bag-close-btn">&times;</button>
+      </div>
+
+      <div class="drawer-items-list" id="bag-items-list">
+        <p class="empty-msg">Your shopping bag is currently empty.</p>
+      </div>
+
+      <div class="understated-ai-upsell" id="cart-ai-upsell" style="display: none;">
+        <span class="upsell-badge">STYLIST TIP</span>
+        <p id="cart-upsell-text">Add a pair of ribbed cotton socks to complete your footwear.</p>
+      </div>
+
+      <div class="drawer-footer">
+        <div class="drawer-subtotal-row">
+          <span>Estimated Total</span>
+          <span class="subtotal-amount" id="bag-subtotal">$0.00</span>
+        </div>
+        <p class="shipping-note">Complimentary Carbon-Neutral Express Shipping</p>
+        <button class="btn-primary btn-block" id="checkout-btn">Proceed to Checkout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WARDROBE DRAWER -->
+  <div class="drawer-overlay" id="wardrobe-drawer" style="display: none;">
+    <div class="drawer-panel">
+      <div class="drawer-header">
+        <h2>Saved Wardrobe (<span id="drawer-wardrobe-count">0</span>)</h2>
+        <button class="drawer-close-btn" id="wardrobe-close-btn">&times;</button>
+      </div>
+
+      <div class="wardrobe-ai-bar">
+        <input type="text" id="wardrobe-ai-query" placeholder="Ask AI: 'Which jacket matches my saved boots?'" />
+        <button class="btn-secondary" id="wardrobe-ai-btn">Ask</button>
+      </div>
+
+      <div class="drawer-items-list" id="wardrobe-items-list">
+        <p class="empty-msg">No items saved to your wardrobe yet. Click the bookmark icon on any piece to save it.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="aura-footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <div class="logo">AURA</div>
+        <p>AI-Native Luxury Fashion Concierge powered by LangGraph, Groq LLM & MongoDB Atlas.</p>
+      </div>
+      <div class="footer-links">
+        <span>Curated Catalog</span>
+        <span>Hybrid Vector Search</span>
+        <span>Agentic Commerce</span>
+        <span>Style Intelligence</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
