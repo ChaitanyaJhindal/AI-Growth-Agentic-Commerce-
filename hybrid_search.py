@@ -4,6 +4,12 @@ from pymongo.server_api import ServerApi
 import config
 from embedding_engine import get_embedding_engine
 
+def serialize_doc(doc: dict) -> dict:
+    """Ensures document is JSON/msgpack serializable (e.g. stringifying ObjectId)."""
+    if "_id" in doc:
+        doc["_id"] = str(doc["_id"])
+    return doc
+
 class ProductHybridSearchEngine:
     """Combines Atlas Vector Search + MongoDB Text Search + Metadata Filtering via RRF."""
 
@@ -63,7 +69,8 @@ class ProductHybridSearchEngine:
             stage["$vectorSearch"]["filter"] = filter_dict
 
         try:
-            return list(self.collection.aggregate([stage, {"$project": {"embedding": 0, "vector_score": {"$meta": "vectorSearchScore"}}}]))
+            docs = list(self.collection.aggregate([stage, {"$project": {"embedding": 0, "vector_score": {"$meta": "vectorSearchScore"}}}]))
+            return [serialize_doc(d) for d in docs]
         except Exception:
             return []
 
@@ -80,12 +87,13 @@ class ProductHybridSearchEngine:
             {"$limit": limit}
         ]
         try:
-            return list(self.collection.aggregate(pipeline))
+            docs = list(self.collection.aggregate(pipeline))
+            return [serialize_doc(d) for d in docs]
         except Exception:
-            # Simple regex fallback if text index is unavailable
             regex_match = {"$or": [{"name": {"$regex": query, "$options": "i"}}, {"brand": {"$regex": query, "$options": "i"}}]}
             if filter_dict: regex_match.update(filter_dict)
-            return list(self.collection.find(regex_match, {"embedding": 0}).limit(limit))
+            docs = list(self.collection.find(regex_match, {"embedding": 0}).limit(limit))
+            return [serialize_doc(d) for d in docs]
 
     def hybrid_search(
         self,
@@ -105,14 +113,14 @@ class ProductHybridSearchEngine:
 
         for rank, doc in enumerate(vec_results, 1):
             pid = doc.get("product_id") or str(doc["_id"])
-            items[pid] = doc
+            items[pid] = serialize_doc(doc)
             items[pid]["vector_rank"] = rank
             rrf_scores[pid] = rrf_scores.get(pid, 0.0) + (vec_weight / (rrf_k + rank))
 
         for rank, doc in enumerate(kw_results, 1):
             pid = doc.get("product_id") or str(doc["_id"])
             if pid not in items:
-                items[pid] = doc
+                items[pid] = serialize_doc(doc)
             items[pid]["keyword_rank"] = rank
             rrf_scores[pid] = rrf_scores.get(pid, 0.0) + (kw_weight / (rrf_k + rank))
 

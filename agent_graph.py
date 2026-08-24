@@ -1,5 +1,6 @@
 from typing import Dict, Any, Literal
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 from agent_state import AgentState
 from agents import (
     query_agent_node,
@@ -37,10 +38,12 @@ def route_after_validation(state: AgentState) -> Literal["upsell_agent", "search
 
 
 # ==========================================
-# Build LangGraph StateGraph
+# Build LangGraph StateGraph with MemorySaver Checkpointer
 # ==========================================
 
-def create_ecommerce_agent_graph() -> StateGraph:
+memory_checkpointer = MemorySaver()
+
+def create_ecommerce_agent_graph(checkpointer = memory_checkpointer):
     workflow = StateGraph(AgentState)
 
     # 1. Add Nodes
@@ -57,8 +60,6 @@ def create_ecommerce_agent_graph() -> StateGraph:
     workflow.add_edge("query_agent", "context_agent")
 
     # Conditional Branch after Context Agent:
-    # If needs clarification -> END (Wait for user reply)
-    # If enough context -> search_node
     workflow.add_conditional_edges(
         "context_agent",
         route_after_context,
@@ -71,8 +72,6 @@ def create_ecommerce_agent_graph() -> StateGraph:
     workflow.add_edge("search_node", "validation_agent")
 
     # Conditional Branch after Validation Agent:
-    # If validated (or max retries) -> upsell_agent -> END
-    # If not validated -> search_node (Retry loop)
     workflow.add_conditional_edges(
         "validation_agent",
         route_after_validation,
@@ -84,8 +83,8 @@ def create_ecommerce_agent_graph() -> StateGraph:
 
     workflow.add_edge("upsell_agent", END)
 
-    return workflow.compile()
+    return workflow.compile(checkpointer=checkpointer)
 
 
-# Global compiled app
+# Global compiled app with conversation checkpointing
 agent_app = create_ecommerce_agent_graph()
