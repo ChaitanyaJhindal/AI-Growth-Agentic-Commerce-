@@ -1,229 +1,128 @@
-# MongoDB Atlas + PyMongo E-Commerce Hybrid Search Engine
+# MongoDB Atlas + LangGraph Agentic E-Commerce System
 
-High-performance **Hybrid Search Engine** (Vector Search + Full-Text Keyword Search + Structured Metadata Filtering) powered by **MongoDB Atlas**, **PyMongo**, and **Sentence-Transformers (`all-MiniLM-L6-v2`)**.
-
----
-
-## 🏗️ Architecture & Search Strategy
-
-```
-                          User Search Query & Filters
-                                     │
-                 ┌───────────────────┴───────────────────┐
-                 │                                       │
-                 ▼                                       ▼
-    ┌───────────────────────────┐           ┌───────────────────────────┐
-    │    Vector Search (ANN)    │           │    Keyword Text Search    │
-    │  `all-MiniLM-L6-v2` (384) │           │     MongoDB `$text` Index │
-    │   Cosine Similarity       │           │     `textScore` Relevance │
-    └────────────┬──────────────┘           └────────────┬──────────────┘
-                 │                                       │
-                 │   Pre-filtered by Metadata:           │
-                 │   (Brand, Gender, Price, Stock, etc.) │
-                 │                                       │
-                 └───────────────────┬───────────────────┘
-                                     ▼
-                    ┌─────────────────────────────────┐
-                    │  Reciprocal Rank Fusion (RRF)   │
-                    │  + Dynamic Score Normalization  │
-                    └────────────────┬────────────────┘
-                                     ▼
-                        Ranked Product Results
-```
-
-### 1. Document Schema & Embedding Rules
-
-Each product is stored in MongoDB Atlas with structured JSON fields:
-
-```json
-{
-  "product_id": "PROD-15970",
-  "original_id": 15970,
-  "name": "Turtle Check Men Navy Blue Shirt",
-  "brand": "Turtle",
-  "gender": "Men",
-  "master_category": "Apparel",
-  "sub_category": "Topwear",
-  "article_type": "Shirts",
-  "base_color": "Navy Blue",
-  "season": "Fall",
-  "year": 2011,
-  "usage": "Casual",
-  "image_url": "https://assets.myntassets.com/v1/images/style/properties/7a5b82d1372a7a5c6de67ae7a314fd91_images.jpg",
-  "price": 51.38,
-  "stock": 0,
-  "rating": 4.1,
-  "review_count": 217,
-  "search_text": "Turtle Check Men Navy Blue Shirt Turtle Men Apparel Topwear Shirts Navy Blue Fall Casual",
-  "embedding": [0.0123, -0.0456, ..., 0.0891]
-}
-```
-
-- **`search_text` Composition**:
-  `name` + `brand` + `gender` + `master_category` + `sub_category` + `article_type` + `base_color` + `season` + `usage`
-- **`embedding` Field**:
-  Dense 384-dimensional float vector generated strictly from `search_text` using `all-MiniLM-L6-v2`.
-- **Excluded From Embedding**:
-  `product_id`, `original_id`, `image_url`, `price`, `stock`, `rating`, `review_count`, `year` are strictly stored as queryable metadata attributes for indexing and filtering.
+Multi-Agent AI E-Commerce Shopping Assistant built with **LangGraph**, **Groq LLM (`openai/gpt-oss-120b`)**, **MongoDB Atlas Hybrid Search**, and **PyMongo**.
 
 ---
 
-## ⚡ Atlas Vector Search Index Configuration
+## 🤖 Agentic Architecture (LangGraph Workflow)
 
-The Vector Search index (`vector_index`) in MongoDB Atlas is defined as follows (also exported in [`atlas_vector_search_index.json`](file:///c:/Users/Chait/Downloads/Desktop/AI%20Growth%20&%20Agentic%20Commerce/atlas_vector_search_index.json)):
-
-```json
-{
-  "fields": [
-    {
-      "type": "vector",
-      "path": "embedding",
-      "numDimensions": 384,
-      "similarity": "cosine"
-    },
-    { "type": "filter", "path": "brand" },
-    { "type": "filter", "path": "gender" },
-    { "type": "filter", "path": "master_category" },
-    { "type": "filter", "path": "sub_category" },
-    { "type": "filter", "path": "article_type" },
-    { "type": "filter", "path": "base_color" },
-    { "type": "filter", "path": "season" },
-    { "type": "filter", "path": "usage" },
-    { "type": "filter", "path": "price" },
-    { "type": "filter", "path": "stock" },
-    { "type": "filter", "path": "rating" }
-  ]
-}
+```
+                       User Query
+                           │
+                           ▼
+                    ┌──────────────┐
+                    │ Query Agent  │ ── Parses intent, attributes, & constraints
+                    └──────┬───────┘
+                           │
+                           ▼
+                   ┌───────────────┐
+                   │ Context Agent │ ── Evaluates context completeness
+                   └───────┬───────┘
+                           │
+              ┌────────────┴────────────┐
+              ▼                         ▼
+      [Needs Clarification?]    [Has Enough Context?]
+              │                         │
+     Ask Follow-up Question        Search Node
+      (Max 2 user turns)                │
+                                        ▼
+                               ┌──────────────────┐
+                               │ Validation Agent │ ── Checks product relevance
+                               └────────┬─────────┘
+                                        │
+                         ┌──────────────┴──────────────┐
+                         ▼                             ▼
+                 [Validation Failed]            [Validation Passed]
+                 (Rewrite query & retry)               │
+                         │                             ▼
+                         └──────────────►       ┌──────────────┐
+                                                │ Upsell Agent │ ── Recommends outfits
+                                                └──────┬───────┘
+                                                       │
+                                                       ▼
+                                                 Final Results
 ```
 
-> **To create via MongoDB Atlas UI**:
-> 1. In your MongoDB Atlas cluster, navigate to **Atlas Search** (or **Search / Vector Search**).
-> 2. Click **Create Search Index** -> Select **JSON Editor**.
-> 3. Select your Database (`ecommerce_catalog`) and Collection (`products`).
-> 4. Set Index Name to: `vector_index`.
-> 5. Paste the JSON from [`atlas_vector_search_index.json`](file:///c:/Users/Chait/Downloads/Desktop/AI%20Growth%20&%20Agentic%20Commerce/atlas_vector_search_index.json) and click **Create Search Index**.
+### 1. The 5 Core Agents & Nodes
 
----
-
-## 🚀 Quickstart & Setup
-
-### 1. Configure Credentials
-Copy `.env.example` to `.env` and fill in your MongoDB password:
-```bash
-cp .env.example .env
-```
-In `.env`:
-```env
-MONGODB_PASSWORD=your_actual_password
-```
-
-### 2. Test Connection
-Verify connection and ping your Atlas deployment:
-```bash
-python test_connection.py
-```
-*(Or pass the password directly via `--password <your_password>`)*
-
-### 3. Run Pipeline Tests
-Run the local unit test suite to verify schema sanitation, embedding generation, and metadata filter creation:
-```bash
-python test_pipeline.py
-```
-
-### 4. Ingest Product Catalog with Embeddings
-Ingest products into MongoDB Atlas with automated index creation and batch embeddings:
-```bash
-# Ingest full dataset (44,424 items):
-python ingest.py --batch-size 256
-
-# Or ingest a quick test sample (e.g. 500 items):
-python ingest.py --limit 500
-```
-
----
-
-## 🔍 Hybrid Search CLI Usage
-
-Use `search_cli.py` to search interactively or with precise metadata filters:
-
-### Semantic Hybrid Search
-```bash
-python search_cli.py "breathable summer running shoes" --gender Men --min-rating 4.0 --in-stock
-```
-
-### Keyword Exact Search
-```bash
-python search_cli.py "Peter England Blue Jeans" --mode keyword
-```
-
-### Vector Only Search
-```bash
-python search_cli.py "water resistant luxury wrist watch" --mode vector --max-price 150
-```
-
-### Advanced Multi-Filter Search
-```bash
-python search_cli.py "casual t-shirt" --brand Puma --gender Men --min-price 20 --max-price 60 --color Grey --in-stock --limit 5
-```
-
----
-
-## 💻 Python Code Usage
-
-You can import and use `ProductHybridSearchEngine` in any Python application or API:
-
-```python
-from hybrid_search import ProductHybridSearchEngine
-
-engine = ProductHybridSearchEngine()
-
-# 1. Build metadata filter
-filter_query = engine.build_metadata_filter(
-    brand="Puma",
-    gender="Men",
-    min_price=20.0,
-    max_price=80.0,
-    in_stock_only=True,
-    min_rating=4.0
-)
-
-# 2. Execute hybrid search
-results = engine.hybrid_search(
-    query="lightweight gym training shoes",
-    filter_query=filter_query,
-    vector_weight=0.6,
-    keyword_weight=0.4,
-    limit=10
-)
-
-for product in results:
-    print(f"[{product['product_id']}] {product['name']} - ${product['price']} | RRF Score: {product['rrf_score']}")
-```
-
----
-
-## 📊 Dataset Columns Reference
-
-| Field | Description | Sample Value |
+| Agent / Node | Role | Implementation |
 | :--- | :--- | :--- |
-| `product_id` | Unique ID | `PROD-15970` |
-| `original_id` | Dataset numerical ID | `15970` |
-| `name` | Product display name | `Turtle Check Men Navy Blue Shirt` |
-| `brand` | Extracted brand name | `Turtle` |
-| `gender` | Gender target | `Men`, `Women`, `Unisex`, `Boys`, `Girls` |
-| `master_category` | High-level category | `Apparel`, `Footwear`, `Accessories` |
-| `sub_category` | Sub-category | `Topwear`, `Shoes`, `Watches`, `Bags` |
-| `article_type` | Specific article type | `Shirts`, `Jeans`, `Casual Shoes`, `Tshirts` |
-| `base_color` | Base color | `Navy Blue`, `Black`, `White`, `Blue` |
-| `season` | Season | `Fall`, `Summer`, `Winter`, `Spring` |
-| `year` | Catalog year | `2011`, `2016`, `2018` |
-| `usage` | Intended usage | `Casual`, `Sports`, `Formal`, `Ethnic` |
-| `image_url` | Direct Remote CDN Image URL | `https://assets.myntassets.com/...` |
-| `price` | Price (USD) | `51.38` |
-| `stock` | Stock count | `0` to `50` |
-| `rating` | Rating | `4.1` |
-| `review_count` | Review count | `217` |
-| `search_text` | Generated searchable text string | `Turtle Check Men Navy Blue Shirt Turtle Men Apparel Topwear Shirts Navy Blue Fall Casual` |
-| `embedding` | 384-dimensional vector | `[-0.0273, 0.0750, ...]` |
-#   A I - G r o w t h - A g e n t i c - C o m m e r c e -  
- 
+| **1. Query Agent** | Extracts intent, category, brand, gender, price range, and attributes. | Structured Pydantic extraction using Groq `openai/gpt-oss-120b`. |
+| **2. Context Agent** | Checks if query has enough context. Asks **at most 1 concise question** if critically vague (max 2 rounds). | Interactive follow-up loop. |
+| **3. Search Node** | **Deterministic tool node**. Executes `hybrid_search(query, filters)` against MongoDB Atlas. | PyMongo `$vectorSearch` + `$text` + RRF fusion (no LLM decision). |
+| **4. Validation Agent** | Validates retrieved products against requirements. Rewrites query if mismatched (max 2 retries). | Quality control agent with retry feedback loop. |
+| **5. Upsell Agent** | Recommends matching complementary products (e.g. Shoes → Socks/Pants, Shirts → Trousers/Watches). | Searches matching categories and uses LLM to rank outfit compatibility. |
+
+---
+
+## 🚀 Running the Interactive Agent CLI
+
+Run the multi-agent conversational shopping assistant in your terminal:
+
+```bash
+python agent_cli.py
+```
+
+### Example 1: Specific Query Flow
+```
+Enter your shopping request: casual blue shirts for men under 60
+
+[LangGraph] Processing agent pipeline...
+Intent Extracted:   search
+Parsed Search Term: 'casual blue shirts for men'
+Active Filters:     {'gender': 'Men', 'article_type': 'Shirts', 'price': {'$lte': 60.0}}
+Validation Status:  PASSED
+
+Validated Search Results (15 items):
++-----+------------+----------------------------------+----------+---------------+---------+---------+---------+-----------+-------------+
+|   # | ID         | Name                             | Brand    | Gender/Type   | Color   | Price   | Rating  | RRF Score |
++=====+============+==================================+==========+===============+=========+=========+=========+===========+=============+
+|   1 | PROD-15970 | Turtle Check Men Navy Blue Shirt | Turtle   | Men / Shirts  | Navy    | $51.38  | 4.1     | 0.015584  |
+...
+
+AI Fashion Stylist Outfit Recommendations (Upsell & Cross-Sell):
+[Look #1] Basics Men Black Trousers ($58.91) - Black Trousers
+  * Compatibility: Classic contrast pairing navy blue shirt with black trousers.
+  * Stylist Tip:   Tuck in the front, add a brown leather belt and casual loafers.
+```
+
+### Example 2: Clarification Flow
+```
+Enter your shopping request: I want sneakers
+
+[LangGraph] Processing agent pipeline...
+🤖 Context Agent Follow-up:
+   "Are you looking for men's or women's sneakers, and do you have a target budget?"
+
+Your answer: Men's running sneakers under $80
+
+[LangGraph] Processing agent pipeline...
+Validation Status:  PASSED
+... (Returns 15 validated Men's running sneakers under $80 with matching sportswear upsells)
+```
+
+---
+
+## 🧪 Automated Agent Testing
+
+Run the full end-to-end test suite for all 5 agents:
+```bash
+python test_agents.py
+```
+
+---
+
+## 📁 File Structure
+
+```
+├── agent_state.py          # Pydantic models & LangGraph AgentState TypedDict
+├── agents.py               # QueryAgent, ContextAgent, SearchNode, ValidationAgent, UpsellAgent
+├── agent_graph.py          # LangGraph StateGraph assembly and conditional edges
+├── agent_cli.py            # Interactive terminal CLI with follow-up loops
+├── test_agents.py          # Automated multi-agent workflow verification test suite
+├── hybrid_search.py        # MongoDB Atlas Vector Search + Text Search + RRF Engine
+├── embedding_engine.py     # Sentence-Transformers (all-MiniLM-L6-v2, 384 dims)
+├── index_manager.py        # MongoDB Atlas Vector Search & text indexes
+├── ingest.py               # Fast bulk dataset ingestion script
+└── config.py               # Configuration & DNS resolver fallback
+```
