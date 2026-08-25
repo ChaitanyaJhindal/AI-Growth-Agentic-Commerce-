@@ -1,17 +1,39 @@
 services:
+  # =============================================================
+  # 1. Main Web & Agentic Commerce API (Fast & Ultra-Lightweight)
+  # =============================================================
   - type: web
     name: aura-luxury-commerce
     runtime: python
     buildCommand: ./render-build.sh
     startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: GROQ_API_KEY
         sync: false
-      - key: MONGODB_URI
+      - key: MONGODB_PASSWORD
         sync: false
       - key: RAZORPAY_KEY_ID
         sync: false
       - key: RAZORPAY_KEY_SECRET
         sync: false
+      - key: EMBEDDING_SERVICE_URL
+        fromService:
+          type: web
+          name: aura-embedding-engine
+          property: host
+
+  # =============================================================
+  # 2. Dedicated Embedding Microservice (Offloads PyTorch inference)
+  # =============================================================
+  - type: web
+    name: aura-embedding-engine
+    runtime: python
+    buildCommand: ./render-build.sh
+    startCommand: uvicorn src.embedding_service:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9

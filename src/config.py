@@ -34,6 +34,7 @@ LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-120b")
 # Embedding Configuration
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 EMBEDDING_DIM = 384
+EMBEDDING_SERVICE_URL = os.getenv("EMBEDDING_SERVICE_URL", "").rstrip("/")
 
 # Search Text Fields for Hybrid Indexing
 SEARCH_TEXT_FIELDS = [
