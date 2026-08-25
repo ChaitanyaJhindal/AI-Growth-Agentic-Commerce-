@@ -1,13 +1,21 @@
 from typing import List, Dict, Any, Optional
-from sentence_transformers import SentenceTransformer
 from src import config
 
 class EmbeddingEngine:
-    """Generates 384-dim normalized vector embeddings using SentenceTransformer."""
+    """Generates 384-dim normalized vector embeddings using SentenceTransformer (lazy-loaded)."""
 
     def __init__(self, model_name: str = config.EMBEDDING_MODEL):
-        self.model = SentenceTransformer(model_name)
+        self.model_name = model_name
         self.dimensions = config.EMBEDDING_DIM
+        self._model = None
+
+    @property
+    def model(self):
+        """Lazy-loads SentenceTransformer on first inference to minimize startup RAM."""
+        if self._model is None:
+            from sentence_transformers import SentenceTransformer
+            self._model = SentenceTransformer(self.model_name)
+        return self._model
 
     @staticmethod
     def build_search_text(doc: Dict[str, Any]) -> str:
