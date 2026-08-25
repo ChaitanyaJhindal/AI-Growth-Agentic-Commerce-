@@ -3,6 +3,7 @@ import uuid
 import traceback
 from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -213,6 +214,67 @@ async def verify_payment(req: VerifyPaymentRequest):
         "razorpay_order_id": req.razorpay_order_id
     }
 
+
+# =====================================================================
+# User Profile & Orders Endpoints
+# =====================================================================
+
+@app.get("/api/user/orders")
+async def get_user_orders(email: str):
+    """Retrieves full order documents and profile for the specified user."""
+    manager = get_user_manager()
+    profile = manager.get_user_profile(email)
+    if not profile:
+        raise HTTPException(status_code=404, detail="User not found.")
+    orders = manager.get_user_orders(email)
+    return {"success": True, "user": profile, "orders": orders}
+
+
+# =====================================================================
+# Admin Intelligence & Executive Atelier Endpoints
+# =====================================================================
+
+class UpdateOrderStatusRequest(BaseModel):
+    order_id: str = Field(..., description="Order Reference ID")
+    status: str = Field(..., description="New fulfillment status (e.g. In Transit, Delivered)")
+
+@app.get("/api/admin/overview")
+async def get_admin_overview():
+    """Retrieves high-level executive analytics, gross metrics, and recent orders for admin."""
+    manager = get_user_manager()
+    metrics = manager.get_admin_metrics()
+    return {"success": True, "metrics": metrics}
+
+@app.get("/api/admin/orders")
+async def get_admin_orders(limit: Optional[int] = 100):
+    """Retrieves all orders placed across the boutique."""
+    manager = get_user_manager()
+    orders = manager.get_all_orders(limit=limit or 100)
+    return {"success": True, "orders": orders}
+
+@app.get("/api/admin/users")
+async def get_admin_users():
+    """Retrieves registered patrons directory."""
+    manager = get_user_manager()
+    users = manager.get_all_users()
+    return {"success": True, "users": users}
+
+@app.post("/api/admin/orders/update-status")
+async def update_order_status(req: UpdateOrderStatusRequest):
+    """Updates fulfillment status for an order."""
+    manager = get_user_manager()
+    success = manager.update_order_status(order_id=req.order_id, new_status=req.status)
+    if not success:
+        raise HTTPException(status_code=404, detail="Order not found or status unchanged.")
+    return {"success": True, "order_id": req.order_id, "status": req.status}
+
+@app.get("/admin")
+async def serve_admin_portal():
+    """Serves the AURA Executive Atelier Admin Dashboard."""
+    admin_file = os.path.join(static_dir, "admin.html")
+    if os.path.exists(admin_file):
+        return FileResponse(admin_file)
+    raise HTTPException(status_code=404, detail="Admin dashboard file not found.")
 
 
 # =====================================================================

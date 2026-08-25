@@ -38,7 +38,15 @@
         </button>
         <div class="user-dropdown" id="user-dropdown" style="display: none;">
           <div class="dropdown-user-email" id="dropdown-user-email"></div>
-          <button class="dropdown-item" id="logout-btn">Log Out</button>
+          <button class="dropdown-item-btn" id="nav-profile-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            My Profile & Orders
+          </button>
+          <a href="/admin" class="dropdown-item-link" id="nav-admin-link" target="_blank">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Executive Admin Portal &rarr;
+          </a>
+          <button class="dropdown-item logout" id="logout-btn">Log Out</button>
         </div>
       </div>
 
@@ -381,6 +389,56 @@
       </div>
 
       <button class="btn-primary btn-block" id="order-done-btn">Continue Exploring</button>
+    </div>
+  </div>
+
+  <!-- CUSTOMER PROFILE & ORDER HISTORY ARCHIVE MODAL -->
+  <div class="modal-overlay" id="profile-modal" style="display: none;">
+    <div class="profile-modal-dialog">
+      <button class="modal-close-btn" id="profile-close-btn">&times;</button>
+      
+      <!-- Profile Header -->
+      <div class="profile-header-banner">
+        <div class="profile-avatar-circle" id="profile-avatar-letter">M</div>
+        <div class="profile-identity">
+          <div class="profile-tier-badge">AURA ATELIER PATRON</div>
+          <h2 class="profile-name" id="profile-display-name">Member Name</h2>
+          <p class="profile-email" id="profile-display-email">member@example.com</p>
+        </div>
+      </div>
+
+      <!-- Patron KPI Highlights -->
+      <div class="profile-stats-grid">
+        <div class="profile-stat-card">
+          <span class="stat-label">Saved Wardrobe</span>
+          <span class="stat-value" id="profile-stat-wardrobe">0</span>
+          <span class="stat-sub">Capsule Pieces</span>
+        </div>
+        <div class="profile-stat-card">
+          <span class="stat-label">Acquisitions</span>
+          <span class="stat-value" id="profile-stat-orders">0</span>
+          <span class="stat-sub">Confirmed Orders</span>
+        </div>
+        <div class="profile-stat-card">
+          <span class="stat-label">Cumulative Spend</span>
+          <span class="stat-value" id="profile-stat-spend">$0.00</span>
+          <span class="stat-sub">Lifetime Volume</span>
+        </div>
+      </div>
+
+      <!-- Order History Section -->
+      <div class="profile-orders-section">
+        <div class="orders-section-header">
+          <h3 class="orders-section-title">Order History & Receipts</h3>
+          <span class="orders-count-badge" id="profile-orders-count-badge">0 Orders</span>
+        </div>
+
+        <div class="profile-orders-container" id="profile-orders-list">
+          <div class="empty-orders-state">
+            <p>Loading your order history from MongoDB...</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AURA — Executive Atelier & Intelligence Portal</title>
+  
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <!-- Header -->
+  <header class="admin-nav">
+    <div class="admin-nav-left">
+      <div class="admin-logo">AURA</div>
+      <span class="admin-badge">EXECUTIVE ATELIER</span>
+      <span class="db-status-pill">
+        <span class="pulse-dot"></span> MongoDB Atlas Connected
+      </span>
+    </div>
+    
+    <div class="admin-nav-right">
+      <span class="live-clock" id="live-clock">--:--:-- UTC</span>
+      <a href="/" class="btn-boutique-link">&larr; Return to Boutique</a>
+      <button class="btn-refresh" id="refresh-data-btn" title="Refresh Dashboard">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        Sync
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="admin-main">
+    <div class="admin-header-row">
+      <div>
+        <span class="kicker">INTELLIGENCE & COMMERCE HUB</span>
+        <h1 class="admin-title">Executive Overview</h1>
+        <p class="admin-subtitle">Real-time acquisitions stream, patron directory, and revenue intelligence.</p>
+      </div>
+      <div class="admin-quick-actions">
+        <button class="btn-secondary" id="export-orders-btn">Export Order Stream (.JSON)</button>
+      </div>
+    </div>
+
+    <!-- Metrics Cards Grid -->
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-card-top">
+          <span class="metric-label">Gross Revenue</span>
+          <span class="metric-trend up">+14.2%</span>
+        </div>
+        <div class="metric-value" id="kpi-gross-volume">$0.00</div>
+        <span class="metric-sub">Processed via Razorpay</span>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-card-top">
+          <span class="metric-label">Total Acquisitions</span>
+          <span class="metric-trend up">+8.5%</span>
+        </div>
+        <div class="metric-value" id="kpi-total-orders">0</div>
+        <span class="metric-sub">Confirmed Orders</span>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-card-top">
+          <span class="metric-label">Registered Patrons</span>
+          <span class="metric-trend up">+12.0%</span>
+        </div>
+        <div class="metric-value" id="kpi-total-users">0</div>
+        <span class="metric-sub">VIP Member Profiles</span>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-card-top">
+          <span class="metric-label">Average Order Value</span>
+          <span class="metric-trend up">+5.1%</span>
+        </div>
+        <div class="metric-value" id="kpi-avg-order">$0.00</div>
+        <span class="metric-sub">Per Acquisition Capsule</span>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-tab="tab-orders">Acquisitions Stream (<span id="tab-orders-count">0</span>)</button>
+      <button class="admin-tab" data-tab="tab-patrons">Patron Directory (<span id="tab-users-count">0</span>)</button>
+      <button class="admin-tab" data-tab="tab-analytics">Category Intelligence</button>
+    </div>
+
+    <!-- TAB 1: ACQUISITIONS STREAM -->
+    <section class="tab-pane active" id="tab-orders">
+      <div class="table-controls-bar">
+        <div class="search-input-wrapper">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="order-search-input" placeholder="Search by Order ID, Razorpay ID, or Patron Email..." />
+        </div>
+
+        <div class="filter-group">
+          <select id="order-status-filter" class="admin-select">
+            <option value="ALL">All Fulfillment Statuses</option>
+            <option value="PAID">Paid (Razorpay)</option>
+            <option value="IN TRANSIT">In Transit</option>
+            <option value="DELIVERED">Delivered</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Order Ref</th>
+              <th>Patron</th>
+              <th>Date & Time</th>
+              <th>Capsule Pieces</th>
+              <th>Total Amount</th>
+              <th>Razorpay Reference</th>
+              <th>Fulfillment Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="orders-table-body">
+            <tr>
+              <td colspan="8" class="table-loading-cell">Loading acquisitions stream from MongoDB...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 2: PATRON DIRECTORY -->
+    <section class="tab-pane" id="tab-patrons" style="display: none;">
+      <div class="table-card">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Patron Name</th>
+              <th>Email Address</th>
+              <th>Registered Since</th>
+              <th>Capsule Wardrobe</th>
+              <th>Total Orders</th>
+              <th>Cumulative Spend</th>
+            </tr>
+          </thead>
+          <tbody id="patrons-table-body">
+            <tr>
+              <td colspan="6" class="table-loading-cell">Loading registered patrons from MongoDB...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 3: CATEGORY & COLLECTION INTELLIGENCE -->
+    <section class="tab-pane" id="tab-analytics" style="display: none;">
+      <div class="analytics-grid">
+        <div class="analytics-card">
+          <h3 class="analytics-card-title">Category Sales Distribution</h3>
+          <p class="analytics-card-sub">Breakdown of pieces ordered across master categories</p>
+          <div class="category-bars-list" id="category-bars-list">
+            <div class="table-loading-cell">Aggregating catalog intelligence...</div>
+          </div>
+        </div>
+
+        <div class="analytics-card">
+          <h3 class="analytics-card-title">Platform Architecture</h3>
+          <p class="analytics-card-sub">AI Agentic Commerce Stack Details</p>
+          <div class="tech-specs-list">
+            <div class="spec-row">
+              <span class="spec-label">LLM Orchestration</span>
+              <span class="spec-val">LangGraph (5 Agents: Query, Context, Search, Validation, Upsell)</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">LLM Inference</span>
+              <span class="spec-val">Groq LLM (openai/gpt-oss-120b)</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Database & Search</span>
+              <span class="spec-val">MongoDB Atlas Hybrid Search (Vector + Text + RRF)</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Payment Gateway</span>
+              <span class="spec-val">Razorpay Standard Web Checkout (HMAC-SHA256 Verified)</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Design Language</span>
+              <span class="spec-val">Stitch MCP Aurelian Noir Luxury Design System</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ORDER DETAILS INSPECTOR MODAL -->
+  <div class="modal-overlay" id="order-inspector-modal" style="display: none;">
+    <div class="inspector-modal-dialog">
+      <button class="modal-close-btn" id="inspector-close-btn">&times;</button>
+      
+      <div class="inspector-header">
+        <span class="kicker">ORDER MANIFEST</span>
+        <h2 class="inspector-title" id="inspector-order-id">ORD-XXXXXXXX</h2>
+        <p class="inspector-subtitle" id="inspector-order-meta">Patron: - &bull; Date: -</p>
+      </div>
+
+      <div class="inspector-payment-box">
+        <div class="pay-row">
+          <span>Razorpay Transaction ID:</span>
+          <strong id="inspector-pay-id" style="color: var(--accent-gold);">-</strong>
+        </div>
+        <div class="pay-row">
+          <span>Payment Status:</span>
+          <strong id="inspector-pay-status" style="color: #4ade80;">Paid</strong>
+        </div>
+      </div>
+
+      <h3 style="font-family:'Playfair Display', serif; font-size: 1.15rem; margin-bottom: 0.75rem; color: #ffffff;">Purchased Capsule Pieces</h3>
+      <div class="inspector-items-list" id="inspector-items-list"></div>
+
+      <div class="inspector-total-bar">
+        <span>Total Amount Charged</span>
+        <strong id="inspector-total-amount" style="font-size: 1.25rem; color: var(--accent-gold);">$0.00</strong>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -224,6 +224,72 @@ class UserManager:
             "created_at": now
         }
 
+    def get_user_orders(self, email: str) -> List[Dict[str, Any]]:
+        """Retrieves all full order documents for a specific user, sorted newest first."""
+        clean_email = email.strip().lower()
+        orders = list(self.db["orders"].find({"user_email": clean_email}, {"_id": 0}).sort("created_at", -1))
+        return orders
+
+    def get_all_orders(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Retrieves all placed orders across the platform, sorted newest first."""
+        orders = list(self.db["orders"].find({}, {"_id": 0}).sort("created_at", -1).limit(limit))
+        return orders
+
+    def get_all_users(self) -> List[Dict[str, Any]]:
+        """Retrieves user directory with statistics."""
+        users_cursor = self.users_collection.find({}, {"_id": 0, "password_salt": 0, "password_hash": 0}).sort("created_at", -1)
+        users_list = []
+        for u in users_cursor:
+            orders = u.get("orders", [])
+            total_spent = sum(o.get("total", 0.0) for o in orders)
+            users_list.append({
+                "name": u.get("name", "Patron"),
+                "email": u.get("email"),
+                "created_at": u.get("created_at", ""),
+                "wardrobe_count": len(u.get("wardrobe", [])),
+                "orders_count": len(orders),
+                "total_spent": round(total_spent, 2)
+            })
+        return users_list
+
+    def get_admin_metrics(self) -> Dict[str, Any]:
+        """Calculates executive dashboard analytics and metrics."""
+        orders_col = self.db["orders"]
+        all_orders = list(orders_col.find({}, {"_id": 0}))
+
+        total_orders = len(all_orders)
+        gross_volume = sum(o.get("total_amount", 0.0) for o in all_orders)
+        avg_order_val = (gross_volume / total_orders) if total_orders > 0 else 0.0
+        total_users = self.users_collection.count_documents({})
+        total_products = self.db["products"].count_documents({})
+
+        # Category sales breakdown
+        categories: Dict[str, int] = {}
+        for o in all_orders:
+            for item in o.get("items", []):
+                cat = item.get("master_category") or item.get("article_type") or "Accessories"
+                categories[cat] = categories.get(cat, 0) + 1
+
+        recent_orders = list(orders_col.find({}, {"_id": 0}).sort("created_at", -1).limit(6))
+
+        return {
+            "gross_volume": round(gross_volume, 2),
+            "total_orders": total_orders,
+            "total_users": total_users,
+            "total_products": total_products,
+            "average_order_value": round(avg_order_val, 2),
+            "category_breakdown": categories,
+            "recent_orders": recent_orders
+        }
+
+    def update_order_status(self, order_id: str, new_status: str) -> bool:
+        """Updates fulfillment status for an order."""
+        res = self.db["orders"].update_one(
+            {"order_id": order_id},
+            {"$set": {"status": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        return res.modified_count > 0
+
 _user_manager: Optional[UserManager] = None
 
 def get_user_manager() -> UserManager:
@@ -232,4 +298,5 @@ def get_user_manager() -> UserManager:
     if _user_manager is None:
         _user_manager = UserManager()
     return _user_manager
+
 

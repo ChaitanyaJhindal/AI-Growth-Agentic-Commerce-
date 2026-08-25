@@ -109,6 +109,19 @@ const orderDoneBtn = document.getElementById("order-done-btn");
 const orderRefId = document.getElementById("order-ref-id");
 const orderRefTotal = document.getElementById("order-ref-total");
 
+// Customer Maison Profile Modal Elements
+const profileModal = document.getElementById("profile-modal");
+const profileCloseBtn = document.getElementById("profile-close-btn");
+const navProfileBtn = document.getElementById("nav-profile-btn");
+const profileDisplayName = document.getElementById("profile-display-name");
+const profileDisplayEmail = document.getElementById("profile-display-email");
+const profileAvatarLetter = document.getElementById("profile-avatar-letter");
+const profileStatWardrobe = document.getElementById("profile-stat-wardrobe");
+const profileStatOrders = document.getElementById("profile-stat-orders");
+const profileStatSpend = document.getElementById("profile-stat-spend");
+const profileOrdersCountBadge = document.getElementById("profile-orders-count-badge");
+const profileOrdersList = document.getElementById("profile-orders-list");
+
 // =====================================================================
 // Initialize App
 // =====================================================================
@@ -234,6 +247,108 @@ function setupEventListeners() {
   if (orderDoneBtn) {
     orderDoneBtn.addEventListener("click", () => orderSuccessModal.style.display = "none");
   }
+
+  // Customer Profile & Orders Modal Handlers
+  if (navProfileBtn) {
+    navProfileBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (userDropdown) userDropdown.style.display = "none";
+      openProfileModal();
+    });
+  }
+  if (profileCloseBtn) {
+    profileCloseBtn.addEventListener("click", () => {
+      profileModal.style.display = "none";
+    });
+  }
+}
+
+async function openProfileModal() {
+  if (!currentUser || !currentUser.email) {
+    openAuthModal("login");
+    return;
+  }
+
+  profileModal.style.display = "flex";
+  profileDisplayName.textContent = currentUser.name || "Member";
+  profileDisplayEmail.textContent = currentUser.email || "";
+  profileAvatarLetter.textContent = (currentUser.name || "M").charAt(0).toUpperCase();
+  profileStatWardrobe.textContent = wardrobeItems.length;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/user/orders?email=${encodeURIComponent(currentUser.email)}`);
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.detail || "Failed to load order history");
+    }
+
+    const orders = data.orders || [];
+    profileStatOrders.textContent = orders.length;
+
+    let lifetimeSpend = 0;
+    orders.forEach(o => lifetimeSpend += (o.total_amount || 0));
+    profileStatSpend.textContent = `$${lifetimeSpend.toFixed(2)}`;
+    profileOrdersCountBadge.textContent = `${orders.length} Acquisition${orders.length === 1 ? '' : 's'}`;
+
+    renderProfileOrders(orders);
+  } catch (err) {
+    console.error("Error loading user profile orders:", err);
+    profileOrdersList.innerHTML = `<div class="empty-orders-state"><p>Could not retrieve historical orders at this time.</p></div>`;
+  }
+}
+
+function renderProfileOrders(orders) {
+  if (!orders || orders.length === 0) {
+    profileOrdersList.innerHTML = `
+      <div class="empty-orders-state">
+        <p style="font-size: 1rem; color: #ffffff; margin-bottom: 0.25rem;">No historical orders yet</p>
+        <p style="font-size: 0.8rem; color: #71717a;">Your bespoke acquisitions and capsule orders will be archived here once placed.</p>
+      </div>
+    `;
+    return;
+  }
+
+  profileOrdersList.innerHTML = "";
+  orders.forEach(order => {
+    const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString("en-US", {
+      year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+    }) : "Recent Order";
+
+    const card = document.createElement("div");
+    card.className = "order-history-card";
+
+    let itemsHtml = "";
+    (order.items || []).forEach((item, idx) => {
+      itemsHtml += `
+        <div class="order-item-chip">
+          <img src="${getSafeImageUrl(item.image_url, idx)}" class="order-item-thumb" alt="${item.name}"/>
+          <div class="order-item-info">
+            <span class="order-item-name">${item.name}</span>
+            <span class="order-item-price">$${item.price ? item.price.toFixed(2) : '0.00'}</span>
+          </div>
+        </div>
+      `;
+    });
+
+    card.innerHTML = `
+      <div class="order-card-header">
+        <div class="order-ref-group">
+          <span class="order-ref-title">${order.order_id}</span>
+          <span class="order-meta-sub">${orderDate} &bull; Razorpay ID: <code style="color:var(--accent-gold);">${order.payment_id || 'Direct'}</code></span>
+        </div>
+        <span class="order-status-pill">${order.status || 'Paid (Razorpay)'}</span>
+      </div>
+      <div class="order-items-grid">
+        ${itemsHtml}
+      </div>
+      <div class="order-card-footer">
+        <span>Complimentary Express Delivery</span>
+        <span>Total Paid: <strong>$${(order.total_amount || 0).toFixed(2)}</strong></span>
+      </div>
+    `;
+
+    profileOrdersList.appendChild(card);
+  });
 }
 
 // =====================================================================
