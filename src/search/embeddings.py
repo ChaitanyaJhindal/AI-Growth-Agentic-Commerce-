@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Optional
 from src import config
 
 class EmbeddingEngine:
-    """Generates 384-dim normalized vector embeddings using SentenceTransformer (lazy-loaded)."""
+    """Generates 384-dim normalized vector embeddings using SentenceTransformer (lazy-loaded & memory-optimized)."""
 
     def __init__(self, model_name: str = config.EMBEDDING_MODEL):
         self.model_name = model_name
@@ -11,8 +11,14 @@ class EmbeddingEngine:
 
     @property
     def model(self):
-        """Lazy-loads SentenceTransformer on first inference to minimize startup RAM."""
+        """Lazy-loads SentenceTransformer on first inference with memory optimizations."""
         if self._model is None:
+            try:
+                import torch
+                torch.set_grad_enabled(False)
+                torch.set_num_threads(1)
+            except Exception:
+                pass
             from sentence_transformers import SentenceTransformer
             self._model = SentenceTransformer(self.model_name)
         return self._model
