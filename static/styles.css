@@ -31,6 +31,12 @@
   box-sizing: border-box;
 }
 
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
 body {
   background-color: var(--bg-surface);
   color: var(--text-primary);
@@ -822,14 +828,47 @@ body {
   border: 1px solid var(--border-subtle);
   padding: 1.5rem;
   border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-width: 100%;
 }
 
-.anchor-image {
+.anchor-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-amber);
+  margin-bottom: 0.85rem;
+}
+
+.anchor-img, .anchor-image {
   width: 100%;
+  max-width: 100%;
   height: 320px;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
+  max-height: 320px;
+  object-fit: contain;
+  background-color: var(--bg-surface-dim);
+  border-radius: var(--radius-xs);
   margin-bottom: 1rem;
+  display: block;
+}
+
+.anchor-name {
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 0.25rem;
+  line-height: 1.35;
+}
+
+.anchor-price {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 0.35rem;
 }
 
 .stylist-insight-box {
@@ -875,14 +914,21 @@ body {
   border: 1px solid var(--border-subtle);
   padding: 1rem;
   border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .ensemble-piece-img {
   width: 100%;
+  max-width: 100%;
   height: 160px;
-  object-fit: cover;
+  max-height: 160px;
+  object-fit: contain;
+  background-color: var(--bg-surface-dim);
   border-radius: var(--radius-xs);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  display: block;
 }
 
 .ensemble-piece-name {
