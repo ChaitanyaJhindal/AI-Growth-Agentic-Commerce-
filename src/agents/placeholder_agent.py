@@ -134,21 +134,32 @@ Rules:
     def generate_combo_suggestion(self, anchor: Dict[str, Any], pairings: List[Dict[str, Any]]) -> str:
         """
         Uses openai/gpt-oss-20b to synthesize a chic, tailored styling combo tip
-        based on the anchor piece and its paired recommendation pieces.
+        deeply incorporating the anchor piece and the specific upselling recommendation pieces.
         """
-        anchor_name = anchor.get("name", "Piece")
+        anchor_name = anchor.get("name", "Anchor Piece")
         anchor_brand = anchor.get("brand", "")
         anchor_type = anchor.get("article_type", "apparel")
+        anchor_color = anchor.get("base_color", "")
         
-        pair_names = [p.get("name", "") for p in pairings if p.get("name")]
-        
-        # Fast rule-based fallbacks for ultra-low latency & offline resilience
-        default_tips = [
-            f"Ground this {anchor_name} with sleek minimalist pairings; keep the silhouette effortless and let the clean lines define the aesthetic.",
-            f"Layer the {anchor_name} with contrasting textures to elevate the tonal depth and achieve a modern curated runway balance.",
-            f"Pair this {anchor_name} with tailored complementary tones; roll sleeves or cuff trousers slightly to highlight the silhouette and accessories."
-        ]
-        fallback_tip = random.choice(default_tips)
+        pair_details = []
+        pair_names = []
+        for p in pairings:
+            p_name = p.get("name", "")
+            p_type = p.get("article_type", "complementary piece")
+            p_brand = p.get("brand", "")
+            if p_name:
+                pair_names.append(p_name)
+                pair_details.append(f"- {p_type}: {p_name} ({p_brand})")
+
+        # Context-rich fallback using the exact names of upselling pieces
+        if len(pair_names) >= 3:
+            fallback_tip = f"Pair the {anchor_name} with {pair_names[0]} and {pair_names[1]}, grounded by {pair_names[2]} for an impeccable tonal aesthetic."
+        elif len(pair_names) >= 2:
+            fallback_tip = f"Style the {anchor_name} seamlessly alongside {pair_names[0]} and {pair_names[1]} for an elevated, harmonious look."
+        elif len(pair_names) == 1:
+            fallback_tip = f"Match the {anchor_name} directly with {pair_names[0]} for a balanced, effortlessly curated silhouette."
+        else:
+            fallback_tip = f"Ground this {anchor_name} with tailored minimalist tones; keep the lines effortless and refined."
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -156,14 +167,20 @@ Rules:
             "User-Agent": "AURA-Fashion/1.0"
         }
 
-        system_instruction = """You are AURA's Elite AI Runway Stylist & Creative Director.
-Synthesize a single, punchy 1-2 sentence styling suggestion explaining HOW to wear and pair the anchor piece with the recommended complementary pieces.
+        system_instruction = """You are AURA's Elite Runway Stylist & Creative Director.
+Synthesize a single, ultra-chic 1-2 sentence styling suggestion explaining HOW to wear and combine the anchor piece with the specific recommended complementary pieces.
 Rules:
-1. Be concise, chic, and practical (mention tucking, layering, sleeve roll, shoe pairing, or tonal balance).
-2. Sound like an effortless personal stylist (high-vibe, modern luxury, Gen-Z / quiet luxury aesthetic).
-3. Do NOT use bullet points or markdown headers. Just 1 to 2 engaging sentences."""
+1. Mention the pieces naturally (e.g., tucking, layering a blazer, matching footwear, tonal harmony, cuffing sleeves).
+2. Sound like an effortless personal stylist (modern luxury, high fashion, Gen-Z / quiet luxury aesthetic).
+3. Keep it to 1-2 sharp, engaging sentences. Do NOT use bullet points, quotes, or markdown headers."""
 
-        prompt_user = f"Anchor Piece: {anchor_name} ({anchor_brand}, {anchor_type}).\nPaired Complementary Pieces: {', '.join(pair_names[:3])}.\nWrite 1-2 sentences on how to style this complete look combo:"
+        prompt_user = f"""Anchor Piece:
+- {anchor_type}: {anchor_name} ({anchor_brand}, {anchor_color})
+
+Recommended Upsell Complementary Pieces:
+{chr(10).join(pair_details[:4])}
+
+Write 1-2 concise sentences on how to wear this exact complete look combo together:"""
 
         data = {
             "model": self.model,

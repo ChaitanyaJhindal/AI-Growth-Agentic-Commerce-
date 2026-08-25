@@ -1042,6 +1042,101 @@ body {
   50% { opacity: 0; }
 }
 
+/* Magic Capsule Strip inside Stylist Rationale Box */
+.magic-capsule-strip {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px dashed rgba(184, 122, 68, 0.25);
+  animation: fadeIn 0.4s ease;
+}
+
+.capsule-strip-title {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-amber);
+  margin-bottom: 0.75rem;
+}
+
+.capsule-mini-items {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.capsule-mini-card {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(184, 122, 68, 0.2);
+  border-radius: 8px;
+  padding: 0.35rem 0.65rem 0.35rem 0.35rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 0;
+  filter: blur(10px);
+  transform: translateY(6px) scale(0.95);
+  animation: magicBlurIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes magicBlurIn {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0) scale(1);
+  }
+}
+
+.capsule-mini-card:hover {
+  border-color: var(--accent-gold);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(184, 122, 68, 0.15);
+}
+
+.capsule-mini-img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 6px;
+  background-color: var(--bg-surface-dim);
+  flex-shrink: 0;
+}
+
+.capsule-mini-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.capsule-mini-role {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-amber);
+  line-height: 1.1;
+}
+
+.capsule-mini-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  max-width: 135px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.capsule-mini-price {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
 .ensemble-subtitle {
   font-size: 0.9rem;
   font-weight: 600;

@@ -1072,8 +1072,13 @@ function renderEnsembleItems(selectedProduct, pairings) {
   let total = selectedProduct.price || 55.00;
 
   if (pairings && pairings.length > 0) {
+    // 1. Synthesize context-aware stylist combo tip using openai/gpt-oss-20b
     fetchAndStreamComboStylistTip(selectedProduct, pairings);
 
+    // 2. Render Magical Mini Capsule Strip with blurry-to-sharp animation
+    renderMiniCapsuleStrip(selectedProduct, pairings);
+
+    // 3. Render matching piece cards
     pairings.forEach((item, idx) => {
       activeEnsembleProducts.push(item);
       total += (item.price || 45.00);
@@ -1090,9 +1095,46 @@ function renderEnsembleItems(selectedProduct, pairings) {
     });
   } else {
     streamStylistInsightText("A clean neutral silhouette that pairs seamlessly with minimalist denim and linen tailoring.");
+    const strip = document.getElementById("magic-capsule-strip");
+    if (strip) strip.style.display = "none";
   }
 
   ensembleTotalPrice.textContent = `$${total.toFixed(2)}`;
+}
+
+function renderMiniCapsuleStrip(selectedProduct, pairings) {
+  const strip = document.getElementById("magic-capsule-strip");
+  const miniContainer = document.getElementById("capsule-mini-items");
+  if (!strip || !miniContainer) return;
+
+  miniContainer.innerHTML = "";
+  if (!pairings || pairings.length === 0) {
+    strip.style.display = "none";
+    return;
+  }
+
+  strip.style.display = "block";
+
+  // Anchor piece + Up to 3 complementary pieces
+  const allCapsuleItems = [
+    { ...selectedProduct, isAnchor: true, roleName: "Anchor Piece" },
+    ...pairings.slice(0, 3).map((p, i) => ({ ...p, isAnchor: false, roleName: p.article_type || `Pairing ${i + 1}` }))
+  ];
+
+  allCapsuleItems.forEach((item, index) => {
+    const miniCard = document.createElement("div");
+    miniCard.className = "capsule-mini-card";
+    miniCard.style.animationDelay = `${index * 130}ms`; // Smooth staggered blur-to-sharp reveal
+    miniCard.innerHTML = `
+      <img src="${getSafeImageUrl(item.image_url, index)}" class="capsule-mini-img" alt="${item.name}" onerror="this.src='${FALLBACK_IMAGES[index % FALLBACK_IMAGES.length]}'"/>
+      <div class="capsule-mini-info">
+        <span class="capsule-mini-role">${item.isAnchor ? '✦ ' + item.roleName : item.roleName}</span>
+        <span class="capsule-mini-name" title="${item.name}">${item.name}</span>
+        <span class="capsule-mini-price">$${item.price ? item.price.toFixed(2) : '45.00'}</span>
+      </div>
+    `;
+    miniContainer.appendChild(miniCard);
+  });
 }
 
 // =====================================================================
