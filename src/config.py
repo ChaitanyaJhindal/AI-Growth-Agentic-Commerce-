@@ -27,12 +27,17 @@ DB_NAME = os.getenv("MONGODB_DB_NAME", "ecommerce_catalog")
 COLLECTION_NAME = os.getenv("MONGODB_COLLECTION_NAME", "products")
 VECTOR_INDEX_NAME = os.getenv("MONGODB_VECTOR_INDEX_NAME", "vector_index")
 
-# LLM Configuration
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+# Distributed Multi-Key Groq Configuration (Prevents Rate Limiting Across Agents)
+GROQ_API_KEY_QUERY = os.getenv("GROQ_API_KEY_QUERY", "")
+GROQ_API_KEY_CONTEXT = os.getenv("GROQ_API_KEY_CONTEXT", "")
+GROQ_API_KEY_UPSELL = os.getenv("GROQ_API_KEY_UPSELL", "")
+GROQ_API_KEY_VALIDATION = os.getenv("GROQ_API_KEY_VALIDATION", GROQ_API_KEY_CONTEXT)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", GROQ_API_KEY_QUERY)
+
 LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-120b")
 
 # Voyage AI Embedding Configuration (High-Performance Remote Inference)
-VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "pa-IRb8tYzm_bhrarUI5cRipZ_rgNUygFm2x62ohiCTQpr")
+VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "")
 VOYAGE_MODEL = os.getenv("VOYAGE_MODEL", "voyage-3-lite")
 EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "512"))
 

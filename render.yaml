@@ -8,10 +8,16 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
-      - key: GROQ_API_KEY
+      - key: GROQ_API_KEY_QUERY
+        sync: false
+      - key: GROQ_API_KEY_CONTEXT
+        sync: false
+      - key: GROQ_API_KEY_UPSELL
+        sync: false
+      - key: GROQ_API_KEY_VALIDATION
         sync: false
       - key: VOYAGE_API_KEY
-        value: pa-IRb8tYzm_bhrarUI5cRipZ_rgNUygFm2x62ohiCTQpr
+        sync: false
       - key: MONGODB_PASSWORD
         sync: false
       - key: RAZORPAY_KEY_ID

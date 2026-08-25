@@ -42,7 +42,7 @@ Rules:
    - Generate exactly ONE concise follow-up question.
 3. If the user mentions a category (e.g. "watch", "shoes", "jeans"), it IS sufficient to perform an initial search unless completely meaningless.
 """
-    llm = get_llm()
+    llm = get_llm(temperature=0.1, agent_name="context")
     structured_llm = llm.with_structured_output(ContextEvaluation)
     eval_result: ContextEvaluation = structured_llm.invoke(prompt)
 

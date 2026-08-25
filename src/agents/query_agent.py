@@ -44,7 +44,7 @@ Critical Instructions:
 3. If it is a new search, DO NOT carry over unrelated filters from the previous turn.
 4. Output a standalone cleaned search query.
 """
-    llm = get_llm()
+    llm = get_llm(temperature=0.1, agent_name="query")
     structured_llm = llm.with_structured_output(QueryAnalysis)
     try:
         analysis: QueryAnalysis = structured_llm.invoke(prompt)

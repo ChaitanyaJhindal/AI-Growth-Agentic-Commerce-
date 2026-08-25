@@ -177,9 +177,9 @@ def upsell_agent_node(state: AgentState) -> Dict[str, Any]:
     brand = selected.get("brand", "Studio")
 
     # -----------------------------------------------------------------
-    # Step 1: Dynamic Ideation & Chain-of-Thought (Temp = 0.9)
+    # Step 1: Dynamic Ideation & Chain-of-Thought (Temp = 0.9 - Key 3)
     # -----------------------------------------------------------------
-    llm_creative = get_llm(temperature=0.9)
+    llm_creative = get_llm(temperature=0.9, agent_name="upsell")
 
     user_ideation_msg = f"""Anchor Product Details:
 - Name: {name}

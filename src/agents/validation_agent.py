@@ -54,7 +54,7 @@ Tasks:
 1. If products are relevant to the request, set validated = True.
 2. If completely unrelated, set validated = False and rewrite query.
 """
-    llm = get_llm()
+    llm = get_llm(temperature=0.1, agent_name="validation")
     structured_llm = llm.with_structured_output(ValidationDecision)
     decision: ValidationDecision = structured_llm.invoke(prompt)
 
