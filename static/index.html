@@ -26,6 +26,22 @@
 
     <div class="nav-right">
       <div class="currency-tag">USD ($)</div>
+      
+      <!-- User Auth Trigger / Profile -->
+      <div class="user-auth-wrapper">
+        <button class="auth-btn" id="auth-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span id="auth-user-name">Sign In</span>
+        </button>
+        <div class="user-dropdown" id="user-dropdown" style="display: none;">
+          <div class="dropdown-user-email" id="dropdown-user-email"></div>
+          <button class="dropdown-item" id="logout-btn">Log Out</button>
+        </div>
+      </div>
+
       <button class="bag-btn" id="open-bag-btn">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
           <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
@@ -261,6 +277,56 @@
       <div class="drawer-items-list" id="wardrobe-items-list">
         <p class="empty-msg">No items saved to your wardrobe yet. Click the bookmark icon on any piece to save it.</p>
       </div>
+    </div>
+  </div>
+
+  <!-- AUTH MODAL (Sign In & Sign Up) -->
+  <div class="modal-overlay" id="auth-modal" style="display: none;">
+    <div class="auth-modal-content">
+      <button class="modal-close-btn" id="auth-close-btn">&times;</button>
+      <div class="auth-header">
+        <span class="kicker">MEMBER ACCESS</span>
+        <h2 class="auth-title" id="auth-modal-title">Welcome to AURA</h2>
+        <p class="auth-subtitle">Access your personalized AI style profile, saved capsule, and express checkout.</p>
+      </div>
+
+      <!-- Auth Tabs -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login-btn">Sign In</button>
+        <button class="auth-tab" id="tab-signup-btn">Create Account</button>
+      </div>
+
+      <!-- Sign In Form -->
+      <form class="auth-form" id="login-form">
+        <div class="form-group">
+          <label for="login-email">Email Address</label>
+          <input type="email" id="login-email" required placeholder="your.name@example.com" autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <div class="auth-error" id="login-error" style="display: none;"></div>
+        <button type="submit" class="btn-primary btn-block" id="login-submit-btn">Sign In</button>
+      </form>
+
+      <!-- Sign Up Form -->
+      <form class="auth-form" id="signup-form" style="display: none;">
+        <div class="form-group">
+          <label for="signup-name">Full Name</label>
+          <input type="text" id="signup-name" required placeholder="Chaitanya" autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label for="signup-email">Email Address</label>
+          <input type="email" id="signup-email" required placeholder="your.name@example.com" autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label for="signup-password">Password (min 6 characters)</label>
+          <input type="password" id="signup-password" required placeholder="••••••••" autocomplete="new-password" minlength="6" />
+        </div>
+        <div class="auth-error" id="signup-error" style="display: none;"></div>
+        <button type="submit" class="btn-primary btn-block" id="signup-submit-btn">Create Account</button>
+      </form>
     </div>
   </div>
 

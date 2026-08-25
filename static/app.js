@@ -6,6 +6,7 @@ const API_BASE = "";
 let currentThreadId = localStorage.getItem("aura_thread_id") || generateUUID();
 localStorage.setItem("aura_thread_id", currentThreadId);
 
+let currentUser = JSON.parse(localStorage.getItem("aura_user") || "null");
 let wardrobeItems = JSON.parse(localStorage.getItem("aura_wardrobe") || "[]");
 let bagItems = JSON.parse(localStorage.getItem("aura_bag") || "[]");
 let activeEnsembleProducts = [];
@@ -76,11 +77,34 @@ const wardrobeCount = document.getElementById("wardrobe-count");
 const drawerWardrobeCount = document.getElementById("drawer-wardrobe-count");
 const wardrobeItemsList = document.getElementById("wardrobe-items-list");
 
+// Auth Elements
+const authBtn = document.getElementById("auth-btn");
+const authUserName = document.getElementById("auth-user-name");
+const userDropdown = document.getElementById("user-dropdown");
+const dropdownUserEmail = document.getElementById("dropdown-user-email");
+const logoutBtn = document.getElementById("logout-btn");
+
+const authModal = document.getElementById("auth-modal");
+const authCloseBtn = document.getElementById("auth-close-btn");
+const authModalTitle = document.getElementById("auth-modal-title");
+const tabLoginBtn = document.getElementById("tab-login-btn");
+const tabSignupBtn = document.getElementById("tab-signup-btn");
+const loginForm = document.getElementById("login-form");
+const signupForm = document.getElementById("signup-form");
+const loginEmail = document.getElementById("login-email");
+const loginPassword = document.getElementById("login-password");
+const loginError = document.getElementById("login-error");
+const signupName = document.getElementById("signup-name");
+const signupEmail = document.getElementById("signup-email");
+const signupPassword = document.getElementById("signup-password");
+const signupError = document.getElementById("signup-error");
+
 // =====================================================================
 // Initialize App
 // =====================================================================
 
 document.addEventListener("DOMContentLoaded", () => {
+  updateAuthUI();
   updateBagUI();
   updateWardrobeUI();
   loadTrendingCurations();
@@ -151,6 +175,188 @@ function setupEventListeners() {
       alert("Speech recognition is not supported in this browser.");
     }
   });
+
+  // Auth Event Handlers
+  authBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (currentUser) {
+      userDropdown.style.display = userDropdown.style.display === "none" ? "block" : "none";
+    } else {
+      openAuthModal("login");
+    }
+  });
+
+  document.addEventListener("click", () => {
+    if (userDropdown) userDropdown.style.display = "none";
+  });
+
+  logoutBtn.addEventListener("click", () => {
+    logoutUser();
+  });
+
+  authCloseBtn.addEventListener("click", () => {
+    authModal.style.display = "none";
+  });
+
+  tabLoginBtn.addEventListener("click", () => switchAuthTab("login"));
+  tabSignupBtn.addEventListener("click", () => switchAuthTab("signup"));
+
+  loginForm.addEventListener("submit", handleLoginSubmit);
+  signupForm.addEventListener("submit", handleSignupSubmit);
+}
+
+// =====================================================================
+// User Authentication Logic
+// =====================================================================
+
+function updateAuthUI() {
+  if (currentUser) {
+    authUserName.textContent = currentUser.name || "Member";
+    dropdownUserEmail.textContent = currentUser.email || "";
+  } else {
+    authUserName.textContent = "Sign In";
+    dropdownUserEmail.textContent = "";
+  }
+}
+
+function openAuthModal(mode = "login") {
+  authModal.style.display = "flex";
+  switchAuthTab(mode);
+}
+
+function switchAuthTab(mode) {
+  if (mode === "login") {
+    tabLoginBtn.classList.add("active");
+    tabSignupBtn.classList.remove("active");
+    loginForm.style.display = "flex";
+    signupForm.style.display = "none";
+    authModalTitle.textContent = "Welcome Back";
+    loginError.style.display = "none";
+  } else {
+    tabSignupBtn.classList.add("active");
+    tabLoginBtn.classList.remove("active");
+    signupForm.style.display = "flex";
+    loginForm.style.display = "none";
+    authModalTitle.textContent = "Join AURA";
+    signupError.style.display = "none";
+  }
+}
+
+async function handleLoginSubmit(e) {
+  e.preventDefault();
+  loginError.style.display = "none";
+  const submitBtn = document.getElementById("login-submit-btn");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Signing In...";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: loginEmail.value.trim(),
+        password: loginPassword.value
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.detail || data.error || "Invalid email or password.");
+    }
+
+    // Save logged-in user
+    currentUser = data.user;
+    localStorage.setItem("aura_user", JSON.stringify(currentUser));
+
+    // Merge saved wardrobe and bag from MongoDB
+    if (data.user.wardrobe && data.user.wardrobe.length > 0) {
+      wardrobeItems = data.user.wardrobe;
+      localStorage.setItem("aura_wardrobe", JSON.stringify(wardrobeItems));
+    }
+    if (data.user.bag && data.user.bag.length > 0) {
+      bagItems = data.user.bag;
+      localStorage.setItem("aura_bag", JSON.stringify(bagItems));
+    }
+
+    updateAuthUI();
+    updateBagUI();
+    updateWardrobeUI();
+    authModal.style.display = "none";
+    loginForm.reset();
+  } catch (err) {
+    loginError.textContent = err.message;
+    loginError.style.display = "block";
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Sign In";
+  }
+}
+
+async function handleSignupSubmit(e) {
+  e.preventDefault();
+  signupError.style.display = "none";
+  const submitBtn = document.getElementById("signup-submit-btn");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Creating Account...";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: signupName.value.trim(),
+        email: signupEmail.value.trim(),
+        password: signupPassword.value
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.detail || data.error || "Sign up failed.");
+    }
+
+    currentUser = data.user;
+    localStorage.setItem("aura_user", JSON.stringify(currentUser));
+
+    // Sync any pre-existing local cart or wardrobe to the newly created MongoDB user
+    syncUserDataWithMongo();
+
+    updateAuthUI();
+    updateBagUI();
+    updateWardrobeUI();
+    authModal.style.display = "none";
+    signupForm.reset();
+  } catch (err) {
+    signupError.textContent = err.message;
+    signupError.style.display = "block";
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Create Account";
+  }
+}
+
+function logoutUser() {
+  currentUser = null;
+  localStorage.removeItem("aura_user");
+  userDropdown.style.display = "none";
+  updateAuthUI();
+}
+
+async function syncUserDataWithMongo() {
+  if (!currentUser || !currentUser.email) return;
+  try {
+    await fetch(`${API_BASE}/api/user/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: currentUser.email,
+        wardrobe: wardrobeItems,
+        bag: bagItems
+      })
+    });
+  } catch (err) {
+    console.log("Notice on syncing user collections to MongoDB:", err);
+  }
 }
 
 // =====================================================================
@@ -178,19 +384,11 @@ async function executeQuery(message) {
     });
 
     const data = await res.json();
-    processingCard.style.display = "none";
-
-    if (data.needs_clarification && data.clarification_question) {
-      // Display Clarification Card
-      displayClarification(data.clarification_question);
-    } else {
-      // Display Search Results
-      displaySearchResults(data);
-    }
+    handleAgentResponse(data);
   } catch (err) {
-    console.error("Error executing query:", err);
+    console.error("API error:", err);
     processingCard.style.display = "none";
-    alert("Connection error. Please ensure the FastAPI backend is running.");
+    alert("Connection error. Please ensure the server is running on http://127.0.0.1:8000");
   }
 }
 
@@ -210,176 +408,191 @@ async function executeClarification(answer) {
     });
 
     const data = await res.json();
-    processingCard.style.display = "none";
-
-    if (data.needs_clarification && data.clarification_question) {
-      displayClarification(data.clarification_question);
-    } else {
-      displaySearchResults(data);
-    }
+    handleAgentResponse(data);
   } catch (err) {
-    console.error("Error on clarification:", err);
+    console.error("Clarification error:", err);
     processingCard.style.display = "none";
   }
+}
+
+function handleAgentResponse(data) {
+  processingCard.style.display = "none";
+
+  if (data.needs_clarification && data.clarification_question) {
+    showClarificationCard(data.clarification_question);
+    return;
+  }
+
+  // Render search results & upsells
+  renderResults(data);
 }
 
 function animateProcessingSteps() {
   const steps = ["step-1", "step-2", "step-3", "step-4", "step-5"];
-  steps.forEach((id, idx) => {
+  steps.forEach(id => {
     const el = document.getElementById(id);
-    if (el) {
-      el.className = "step";
-      setTimeout(() => {
-        el.className = "step active";
-        if (idx > 0) document.getElementById(steps[idx - 1]).className = "step done";
-      }, idx * 600);
-    }
+    if (el) el.className = "step";
+  });
+
+  steps.forEach((id, index) => {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) el.className = "step active";
+    }, index * 300);
   });
 }
 
-function displayClarification(question) {
+function showClarificationCard(question) {
+  clarificationQuestionText.textContent = question;
   clarificationCard.style.display = "flex";
-  clarifyQuestionText.textContent = question;
   clarifyInput.value = "";
+  clarifyInput.focus();
 
-  // Dynamic sample options based on question
-  clarifyOptions.innerHTML = "";
-  let sampleChoices = [];
-  if (question.toLowerCase().includes("budget")) {
-    sampleChoices = ["Under $50", "$50 to $100", "$100 to $200", "No budget limit"];
-  } else if (question.toLowerCase().includes("men") || question.toLowerCase().includes("women")) {
-    sampleChoices = ["Men's collection", "Women's collection", "Unisex"];
-  } else {
-    sampleChoices = ["Everyday wear", "Formal & Dinner", "Sport & Fitness", "Minimalist"];
-  }
-
-  sampleChoices.forEach(choice => {
-    const pill = document.createElement("button");
-    pill.className = "clarify-pill";
-    pill.textContent = choice;
-    pill.addEventListener("click", () => executeClarification(choice));
-    clarifyOptions.appendChild(pill);
+  // Setup pill buttons
+  clarifyOptions.querySelectorAll(".clarify-pill").forEach(pill => {
+    pill.onclick = () => {
+      const ans = pill.getAttribute("data-answer");
+      executeClarification(ans);
+    };
   });
 }
 
-// =====================================================================
-// Search Results Rendering
-// =====================================================================
-
-function displaySearchResults(data) {
-  resultsSection.style.display = "block";
-  productsGrid.innerHTML = "";
-  activeFiltersRow.innerHTML = "";
-
+function renderResults(data) {
   const products = data.search_results || [];
-  interpretationHeadline.textContent = `${products.length} Curated Matches for "${data.current_query || 'your search'}"`;
+  resultsSection.style.display = "block";
+  editorialHome.style.display = "none";
 
-  // Validation details
-  const val = data.validation_result || {};
-  if (val.validated) {
-    validationText.textContent = "Validated by AI Concierge";
-    validationText.parentElement.style.backgroundColor = "#F0FDF4";
+  // Update headline & validation
+  interpretationHeadline.textContent = `${products.length} Curated Selections Found`;
+  
+  const valRes = data.validation_result || {};
+  if (valRes.explanation) {
+    validationText.textContent = valRes.explanation;
   } else {
-    validationText.textContent = "Refined automatically";
+    validationText.textContent = "Verified by AI Concierge";
   }
 
-  // Render active filters
-  const filters = data.filters || {};
-  for (const [key, val] of Object.entries(filters)) {
-    if (val && typeof val !== "object") {
-      const tag = document.createElement("div");
-      tag.className = "filter-tag";
-      tag.innerHTML = `<span>${key}: <strong>${val}</strong></span>`;
-      activeFiltersRow.appendChild(tag);
-    } else if (val && typeof val === "object") {
-      if (val["$lte"]) {
-        const tag = document.createElement("div");
-        tag.className = "filter-tag";
-        tag.innerHTML = `<span>Price ≤ <strong>$${val["$lte"]}</strong></span>`;
-        activeFiltersRow.appendChild(tag);
-      }
-    }
-  }
+  // Active filter pills
+  renderFilterPills(data.filters || {});
 
+  // Product cards
+  productsGrid.innerHTML = "";
   if (products.length === 0) {
-    productsGrid.innerHTML = `<p class="empty-msg" style="grid-column: 1/-1; padding: 2rem 0;">No exact matches found. Try broadening your criteria or asking for another aesthetic.</p>`;
+    productsGrid.innerHTML = `
+      <div class="empty-state">
+        <h3>No matching catalog pieces found</h3>
+        <p>Try refining your inquiry or removing some constraint filters above.</p>
+      </div>
+    `;
     return;
   }
 
-  // Render Product Cards
   products.forEach((prod, index) => {
     const card = document.createElement("div");
     card.className = "product-card";
-
-    const badgeLabel = index === 0 ? "Stylist Top Pick" : (prod.rating >= 4.3 ? "Highly Rated" : "Curated");
-
     card.innerHTML = `
       <div class="card-image-wrap">
         <img src="${getSafeImageUrl(prod.image_url, index)}" alt="${prod.name}" onerror="this.src='${FALLBACK_IMAGES[index % FALLBACK_IMAGES.length]}'"/>
-        <span class="card-badge">${badgeLabel}</span>
-        <button class="card-save-btn" title="Save to Wardrobe">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="${isSaved(prod.product_id) ? '#B87A44' : 'none'}" stroke="${isSaved(prod.product_id) ? '#B87A44' : 'currentColor'}" stroke-width="2">
+        <button class="save-bookmark-btn ${isSaved(prod.product_id) ? 'active' : ''}" title="Save to Wardrobe">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="${isSaved(prod.product_id) ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
             <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
           </svg>
         </button>
       </div>
       <div class="card-body">
         <div class="card-meta">
-          <span class="card-brand">${prod.brand || 'Luxury Studio'}</span>
+          <span class="card-brand">${prod.brand || 'Studio'}</span>
           <span class="card-rating">${prod.rating ? prod.rating.toFixed(1) + ' ★' : ''}</span>
         </div>
         <h3 class="card-title">${prod.name}</h3>
         <div class="card-footer">
-          <span class="card-price">$${prod.price ? prod.price.toFixed(2) : '48.00'}</span>
+          <span class="card-price">$${prod.price ? prod.price.toFixed(2) : '45.00'}</span>
           <button class="explore-outfit-btn">Complete Look</button>
         </div>
       </div>
     `;
 
-    // Save toggle
-    const saveBtn = card.querySelector(".card-save-btn");
-    saveBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
+    // Attach bookmark toggle
+    const bookmarkBtn = card.querySelector(".save-bookmark-btn");
+    bookmarkBtn.addEventListener("click", () => {
       toggleWardrobe(prod);
-      displaySearchResults(data);
+      bookmarkBtn.classList.toggle("active");
+      const svg = bookmarkBtn.querySelector("svg");
+      svg.setAttribute("fill", isSaved(prod.product_id) ? "currentColor" : "none");
     });
 
-    // Open Complete Look Outfit Studio
-    const outfitBtn = card.querySelector(".explore-outfit-btn");
-    outfitBtn.addEventListener("click", () => openOutfitStudio(prod, data.upsell_results));
+    // Attach outfit studio open
+    card.querySelector(".explore-outfit-btn").addEventListener("click", () => {
+      openOutfitStudio(prod, data.upsell_results || []);
+    });
 
     productsGrid.appendChild(card);
   });
+}
+
+function renderFilterPills(filters) {
+  activeFiltersRow.innerHTML = "";
+  if (!filters || Object.keys(filters).length === 0) return;
+
+  for (const [key, val] of Object.entries(filters)) {
+    if (!val) continue;
+    let label = `${key}: ${JSON.stringify(val)}`;
+    if (key === "price" && typeof val === "object") {
+      if (val.$lte) label = `Under $${val.$lte}`;
+      else if (val.$gte) label = `Above $${val.$gte}`;
+    } else if (typeof val === "string") {
+      label = val;
+    }
+
+    const pill = document.createElement("div");
+    pill.className = "filter-tag";
+    pill.innerHTML = `
+      <span>${label}</span>
+      <button class="remove-btn" title="Remove constraint">&times;</button>
+    `;
+    pill.querySelector(".remove-btn").addEventListener("click", () => {
+      pill.remove();
+      executeQuery(`Show results without ${label}`);
+    });
+    activeFiltersRow.appendChild(pill);
+  }
 }
 
 // =====================================================================
 // Outfit Studio Modal ("Complete The Look")
 // =====================================================================
 
-async function openOutfitStudio(anchorProduct, existingUpsells = []) {
+async function openOutfitStudio(selectedProduct, preloadedUpsells = []) {
   outfitModal.style.display = "flex";
-  activeEnsembleProducts = [anchorProduct];
+  activeEnsembleProducts = [selectedProduct];
 
-  // Render left anchor panel
+  // Render Anchor item on Left
   anchorItemPanel.innerHTML = `
-    <span class="kicker">ANCHOR PIECE</span>
-    <img src="${getSafeImageUrl(anchorProduct.image_url, 0)}" class="anchor-image" alt="${anchorProduct.name}"/>
-    <div class="card-brand">${anchorProduct.brand || 'AURA Studio'}</div>
-    <h3 style="font-size: 1.15rem; font-weight: 500; margin: 0.25rem 0 0.5rem;">${anchorProduct.name}</h3>
-    <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.75rem;">$${anchorProduct.price ? anchorProduct.price.toFixed(2) : '88.00'}</div>
-    <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">${anchorProduct.gender || 'Unisex'} · ${anchorProduct.base_color || 'Neutral'} · ${anchorProduct.article_type || 'Piece'}</p>
+    <div class="anchor-badge">Anchor Piece</div>
+    <img src="${getSafeImageUrl(selectedProduct.image_url)}" class="anchor-img" alt="${selectedProduct.name}"/>
+    <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-secondary); margin-top: 0.75rem;">${selectedProduct.brand || 'Studio'}</div>
+    <div class="anchor-name">${selectedProduct.name}</div>
+    <div class="anchor-price">$${selectedProduct.price ? selectedProduct.price.toFixed(2) : '55.00'}</div>
+    <button class="btn-primary" style="margin-top: 1rem; width: 100%;" id="add-anchor-btn">Add Piece Only</button>
   `;
 
-  // Fetch complementary outfit if not preloaded
-  let pairings = existingUpsells;
+  document.getElementById("add-anchor-btn").addEventListener("click", () => {
+    addToBag(selectedProduct);
+    outfitModal.style.display = "none";
+    bagDrawer.style.display = "flex";
+  });
+
+  // Render Right Ensemble Panel
+  let pairings = preloadedUpsells;
   if (!pairings || pairings.length === 0) {
-    stylistInsightText.textContent = "Curating harmonious complementary outfit...";
-    ensembleCardsList.innerHTML = "<p>Loading outfit pairings...</p>";
+    stylistInsightText.textContent = "Curating complementary wardrobe pieces from catalog...";
+    ensembleCardsList.innerHTML = `<div style="color: var(--text-secondary); font-size: 0.85rem;">Finding matching pairings...</div>`;
+    
     try {
       const res = await fetch(`${API_BASE}/api/outfit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product_id: anchorProduct.product_id })
+        body: JSON.stringify({ product_id: selectedProduct.product_id })
       });
       const data = await res.json();
       pairings = data.outfit_pairings || [];
@@ -389,13 +602,16 @@ async function openOutfitStudio(anchorProduct, existingUpsells = []) {
     }
   }
 
-  // Render complementary pieces
+  renderEnsembleItems(selectedProduct, pairings);
+}
+
+function renderEnsembleItems(selectedProduct, pairings) {
   ensembleCardsList.innerHTML = "";
-  let total = anchorProduct.price || 88.00;
+  let total = selectedProduct.price || 55.00;
 
   if (pairings && pairings.length > 0) {
-    const topPairing = pairings[0];
-    stylistInsightText.textContent = topPairing.stylist_note || topPairing.compatibility_reason || "Selected for optimal tonal balance and silhouette harmony.";
+    const firstTip = pairings[0].stylist_note || pairings[0].compatibility_reason;
+    stylistInsightText.textContent = firstTip || "Pairs impeccably with seasonal essentials for an elevated tonal look.";
 
     pairings.forEach((item, idx) => {
       activeEnsembleProducts.push(item);
@@ -434,6 +650,7 @@ function toggleWardrobe(product) {
   }
   localStorage.setItem("aura_wardrobe", JSON.stringify(wardrobeItems));
   updateWardrobeUI();
+  syncUserDataWithMongo();
 }
 
 function updateWardrobeUI() {
@@ -467,12 +684,14 @@ function addToBag(product) {
   bagItems.push(product);
   localStorage.setItem("aura_bag", JSON.stringify(bagItems));
   updateBagUI();
+  syncUserDataWithMongo();
 }
 
 function removeFromBag(index) {
   bagItems.splice(index, 1);
   localStorage.setItem("aura_bag", JSON.stringify(bagItems));
   updateBagUI();
+  syncUserDataWithMongo();
 }
 
 function updateBagUI() {

@@ -11,11 +11,12 @@ from src.agents.workflow import agent_app
 from src.agents.state import AgentState
 from src.agents.nodes import upsell_agent_node, get_search_engine
 from src.search.engine import serialize_doc
+from src.auth import get_user_manager
 
 # Initialize FastAPI
 app = FastAPI(
     title="AURA - AI-Native Luxury Fashion Concierge API",
-    description="Backend API powered by LangGraph, Groq LLM (openai/gpt-oss-120b), and MongoDB Atlas Hybrid Search.",
+    description="Backend API powered by LangGraph, Groq LLM (openai/gpt-oss-120b), and MongoDB Atlas Hybrid Search with User Authentication.",
     version="1.0.0"
 )
 
@@ -48,9 +49,62 @@ class SearchRequest(BaseModel):
     filters: Optional[Dict[str, Any]] = None
     limit: Optional[int] = 15
 
+class SignUpRequest(BaseModel):
+    name: str = Field(..., description="Full Name")
+    email: str = Field(..., description="Email address")
+    password: str = Field(..., description="Password (min 6 characters)")
+
+class LoginRequest(BaseModel):
+    email: str = Field(..., description="Email address")
+    password: str = Field(..., description="Password")
+
+class SyncUserDataRequest(BaseModel):
+    email: str = Field(..., description="User email")
+    wardrobe: Optional[List[Dict[str, Any]]] = None
+    bag: Optional[List[Dict[str, Any]]] = None
+
 
 # =====================================================================
-# API Endpoints
+# Authentication Endpoints
+# =====================================================================
+
+@app.post("/api/auth/signup")
+async def signup(req: SignUpRequest):
+    """Registers a new user in MongoDB with PBKDF2 hashed password."""
+    manager = get_user_manager()
+    result = manager.signup(name=req.name, email=req.email, password=req.password)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Sign up failed."))
+    return result
+
+@app.post("/api/auth/login")
+async def login(req: LoginRequest):
+    """Authenticates user against MongoDB and returns their saved collections."""
+    manager = get_user_manager()
+    result = manager.login(email=req.email, password=req.password)
+    if not result.get("success"):
+        raise HTTPException(status_code=401, detail=result.get("error", "Invalid credentials."))
+    return result
+
+@app.get("/api/auth/me")
+async def get_me(email: str):
+    """Fetches user profile and saved items from MongoDB."""
+    manager = get_user_manager()
+    profile = manager.get_user_profile(email)
+    if not profile:
+        raise HTTPException(status_code=404, detail="User not found.")
+    return {"success": True, "user": profile}
+
+@app.post("/api/user/sync")
+async def sync_user_data(req: SyncUserDataRequest):
+    """Synchronizes user's shopping bag and wardrobe into MongoDB."""
+    manager = get_user_manager()
+    result = manager.sync_user_data(email=req.email, wardrobe=req.wardrobe, bag=req.bag)
+    return result
+
+
+# =====================================================================
+# AI Agent & Search Endpoints
 # =====================================================================
 
 @app.post("/api/chat")

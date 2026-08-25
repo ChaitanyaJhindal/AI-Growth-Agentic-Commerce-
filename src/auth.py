@@ -1,0 +1,178 @@
+import os
+import hashlib
+import secrets
+from datetime import datetime, timezone
+from typing import Dict, Any, Optional, List, Tuple
+from pymongo import MongoClient
+from pymongo.collection import Collection
+from pymongo.server_api import ServerApi
+from src import config
+
+def hash_password(password: str) -> Tuple[str, str]:
+    """
+    Hashes a password using PBKDF2-HMAC-SHA256 with a cryptographically random salt.
+    Returns (salt_hex, hash_hex).
+    """
+    salt = secrets.token_bytes(16)
+    hash_bytes = hashlib.pbkdf2_hmac(
+        hash_name='sha256',
+        password=password.encode('utf-8'),
+        salt=salt,
+        iterations=100000
+    )
+    return salt.hex(), hash_bytes.hex()
+
+def verify_password(password: str, salt_hex: str, expected_hash_hex: str) -> bool:
+    """
+    Verifies a password against the stored salt and hash using constant-time comparison.
+    """
+    try:
+        salt = bytes.fromhex(salt_hex)
+        hash_bytes = hashlib.pbkdf2_hmac(
+            hash_name='sha256',
+            password=password.encode('utf-8'),
+            salt=salt,
+            iterations=100000
+        )
+        return secrets.compare_digest(hash_bytes.hex(), expected_hash_hex)
+    except Exception:
+        return False
+
+class UserManager:
+    """Manages user registration, authentication, and MongoDB persistence."""
+
+    def __init__(self, uri: Optional[str] = None):
+        connection_uri = uri or config.MONGODB_URI
+        if not connection_uri:
+            raise ValueError("MONGODB_URI or MONGODB_PASSWORD environment variable is required.")
+        self.client = MongoClient(connection_uri, server_api=ServerApi('1'))
+        self.db = self.client[config.DB_NAME]
+        self.users_collection: Collection = self.db["users"]
+        self._ensure_indexes()
+
+    def _ensure_indexes(self):
+        """Ensures unique index on user email."""
+        try:
+            self.users_collection.create_index("email", unique=True)
+        except Exception as e:
+            print(f"Notice on user collection index creation: {e}")
+
+    def signup(self, name: str, email: str, password: str) -> Dict[str, Any]:
+        """Registers a new user in MongoDB."""
+        clean_email = email.strip().lower()
+        clean_name = name.strip()
+
+        if not clean_email or "@" not in clean_email:
+            return {"success": False, "error": "Invalid email address format."}
+        if not password or len(password) < 6:
+            return {"success": False, "error": "Password must be at least 6 characters."}
+        if not clean_name:
+            clean_name = clean_email.split("@")[0].capitalize()
+
+        existing = self.users_collection.find_one({"email": clean_email})
+        if existing:
+            return {"success": False, "error": "An account with this email already exists."}
+
+        salt_hex, hash_hex = hash_password(password)
+        now = datetime.now(timezone.utc).isoformat()
+
+        user_doc = {
+            "name": clean_name,
+            "email": clean_email,
+            "password_salt": salt_hex,
+            "password_hash": hash_hex,
+            "created_at": now,
+            "wardrobe": [],
+            "bag": [],
+            "preferences": {}
+        }
+
+        result = self.users_collection.insert_one(user_doc)
+        user_id = str(result.inserted_id)
+
+        return {
+            "success": True,
+            "user": {
+                "id": user_id,
+                "name": clean_name,
+                "email": clean_email,
+                "wardrobe": [],
+                "bag": [],
+                "created_at": now
+            }
+        }
+
+    def login(self, email: str, password: str) -> Dict[str, Any]:
+        """Authenticates an existing user and returns their profile and collections."""
+        clean_email = email.strip().lower()
+
+        if not clean_email or not password:
+            return {"success": False, "error": "Email and password are required."}
+
+        user_doc = self.users_collection.find_one({"email": clean_email})
+        if not user_doc:
+            return {"success": False, "error": "Invalid email or password."}
+
+        salt_hex = user_doc.get("password_salt", "")
+        expected_hash = user_doc.get("password_hash", "")
+
+        if not verify_password(password, salt_hex, expected_hash):
+            return {"success": False, "error": "Invalid email or password."}
+
+        return {
+            "success": True,
+            "user": {
+                "id": str(user_doc["_id"]),
+                "name": user_doc.get("name", clean_email.split("@")[0].capitalize()),
+                "email": clean_email,
+                "wardrobe": user_doc.get("wardrobe", []),
+                "bag": user_doc.get("bag", []),
+                "created_at": user_doc.get("created_at", "")
+            }
+        }
+
+    def get_user_profile(self, email: str) -> Optional[Dict[str, Any]]:
+        """Retrieves user profile and saved items."""
+        clean_email = email.strip().lower()
+        user_doc = self.users_collection.find_one({"email": clean_email})
+        if not user_doc:
+            return None
+        return {
+            "id": str(user_doc["_id"]),
+            "name": user_doc.get("name", ""),
+            "email": clean_email,
+            "wardrobe": user_doc.get("wardrobe", []),
+            "bag": user_doc.get("bag", []),
+            "created_at": user_doc.get("created_at", "")
+        }
+
+    def sync_user_data(self, email: str, wardrobe: Optional[List[Dict[str, Any]]] = None, bag: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """Synchronizes user's saved wardrobe and shopping bag items into MongoDB."""
+        clean_email = email.strip().lower()
+        update_fields = {}
+        if wardrobe is not None:
+            update_fields["wardrobe"] = wardrobe
+        if bag is not None:
+            update_fields["bag"] = bag
+
+        if not update_fields:
+            return {"success": True, "message": "Nothing to update."}
+
+        res = self.users_collection.update_one(
+            {"email": clean_email},
+            {"$set": update_fields}
+        )
+
+        return {
+            "success": res.matched_count > 0,
+            "updated": res.modified_count > 0
+        }
+
+_user_manager: Optional[UserManager] = None
+
+def get_user_manager() -> UserManager:
+    """Returns or initializes the global UserManager singleton."""
+    global _user_manager
+    if _user_manager is None:
+        _user_manager = UserManager()
+    return _user_manager
