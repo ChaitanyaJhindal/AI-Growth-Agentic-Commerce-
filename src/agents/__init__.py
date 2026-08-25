@@ -12,6 +12,7 @@ from src.agents.context_agent import context_agent_node
 from src.agents.search_agent import search_node
 from src.agents.validation_agent import validation_agent_node
 from src.agents.upsell_agent import upsell_agent_node, COMPLEMENTARY_MAP
+from src.agents.placeholder_agent import PlaceholderAgent, get_placeholder_agent
 from src.agents.workflow import agent_app, create_ecommerce_agent_graph
 
 __all__ = [
@@ -28,6 +29,8 @@ __all__ = [
     "search_node",
     "validation_agent_node",
     "upsell_agent_node",
+    "PlaceholderAgent",
+    "get_placeholder_agent",
     "COMPLEMENTARY_MAP",
     "agent_app",
     "create_ecommerce_agent_graph"

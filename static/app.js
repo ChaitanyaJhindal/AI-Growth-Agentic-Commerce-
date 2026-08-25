@@ -132,6 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateWardrobeUI();
   loadTrendingCurations();
   setupEventListeners();
+  initDynamicPlaceholderAgent();
 });
 
 function setupEventListeners() {
@@ -1059,3 +1060,132 @@ async function loadTrendingCurations() {
     console.log("Notice: Starting up backend server for editorial loading...");
   }
 }
+
+// =====================================================================
+// Gen-Z Dynamic Streaming Placeholder Agent (openai/gpt-oss-20b)
+// =====================================================================
+
+const DEFAULT_GENZ_PROMPTS_CLIENT = [
+  "main character energy, black oversized tailored blazer...",
+  "clean girl aesthetic linen button-down for Sunday brunch...",
+  "drop a vibe for a late night rooftop fit under $90...",
+  "coastal granddaughter mood, breezy white sundress...",
+  "stealth wealth minimal white leather sneakers on a budget...",
+  "y2k vintage chronograph watch for the ultimate wrist flex...",
+  "gym rat chic, breathable dry-fit compression tee under $40...",
+  "quiet luxury cashmere knit sweater for evening dinner...",
+  "blokecore retro jersey drip paired with relaxed denim...",
+  "streetwear essentials, matte black cargo trousers under $60...",
+  "old money aesthetic polo shirt in rich navy blue...",
+  "dark academia tailored trousers with structured leather belt..."
+];
+
+let placeholderPool = [...DEFAULT_GENZ_PROMPTS_CLIENT];
+let placeholderIndex = 0;
+let isUserTypingOrFocused = false;
+let currentTypewriterTimeout = null;
+
+async function fetchFreshPlaceholderBatch() {
+  try {
+    const res = await fetch(`${API_BASE}/api/placeholder/batch?count=6`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.prompts && data.prompts.length > 0) {
+        placeholderPool.push(...data.prompts);
+      }
+    }
+  } catch (e) {
+    // Resilient client fallback
+  }
+}
+
+async function getNextGenzPrompt() {
+  try {
+    const res = await fetch(`${API_BASE}/api/placeholder/next`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.prompt) return data.prompt;
+    }
+  } catch (e) {}
+
+  const prompt = placeholderPool[placeholderIndex % placeholderPool.length];
+  placeholderIndex++;
+  return prompt;
+}
+
+function initDynamicPlaceholderAgent() {
+  const inputEl = document.getElementById("query-input");
+  if (!inputEl) return;
+
+  inputEl.addEventListener("focus", () => {
+    isUserTypingOrFocused = true;
+    if (currentTypewriterTimeout) clearTimeout(currentTypewriterTimeout);
+    inputEl.placeholder = "Describe any outfit, aesthetic, brand, or occasion...";
+  });
+
+  inputEl.addEventListener("blur", () => {
+    isUserTypingOrFocused = false;
+    if (!inputEl.value.trim()) {
+      if (currentTypewriterTimeout) clearTimeout(currentTypewriterTimeout);
+      runPlaceholderCycle();
+    }
+  });
+
+  inputEl.addEventListener("input", () => {
+    if (inputEl.value && inputEl.value.trim()) {
+      isUserTypingOrFocused = true;
+      if (currentTypewriterTimeout) clearTimeout(currentTypewriterTimeout);
+    }
+  });
+
+  // Pre-fetch fresh creative prompts from openai/gpt-oss-20b
+  fetchFreshPlaceholderBatch();
+
+  // Start the 10-second streaming cycle
+  runPlaceholderCycle();
+}
+
+async function runPlaceholderCycle() {
+  const inputEl = document.getElementById("query-input");
+  if (!inputEl) return;
+  if (isUserTypingOrFocused || (inputEl.value && inputEl.value.trim())) return;
+
+  const targetPrompt = await getNextGenzPrompt();
+  const prefix = "e.g., '";
+  const suffix = "'";
+  const fullText = `${prefix}${targetPrompt}${suffix}`;
+
+  let currentLength = prefix.length;
+  inputEl.placeholder = prefix;
+
+  // Step 1: Sequential Typewriter (Token/Character streaming appearance)
+  function typeChar() {
+    if (isUserTypingOrFocused || (inputEl.value && inputEl.value.trim())) return;
+
+    if (currentLength <= fullText.length) {
+      inputEl.placeholder = fullText.slice(0, currentLength);
+      currentLength++;
+      currentTypewriterTimeout = setTimeout(typeChar, 28); // Silky ~28ms streaming speed
+    } else {
+      // Step 2: Stay displayed for 3.5 seconds (as requested for styling & reading)
+      currentTypewriterTimeout = setTimeout(eraseChar, 3500);
+    }
+  }
+
+  // Step 3: Sequential Erase (Disappear line-wise / character-wise)
+  function eraseChar() {
+    if (isUserTypingOrFocused || (inputEl.value && inputEl.value.trim())) return;
+
+    if (currentLength >= prefix.length) {
+      inputEl.placeholder = fullText.slice(0, currentLength);
+      currentLength--;
+      currentTypewriterTimeout = setTimeout(eraseChar, 14); // Fast ~14ms erase
+    } else {
+      // Step 4: Pause briefly and launch next Gen-Z prompt (~10s total cycle)
+      currentTypewriterTimeout = setTimeout(runPlaceholderCycle, 800);
+    }
+  }
+
+  typeChar();
+}
+

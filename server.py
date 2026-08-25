@@ -1,10 +1,12 @@
 import os
+import json
 import uuid
+import asyncio
 import traceback
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -304,6 +306,61 @@ async def serve_admin_portal():
     if os.path.exists(admin_file):
         return FileResponse(admin_file)
     raise HTTPException(status_code=404, detail="Admin dashboard file not found.")
+
+
+# =====================================================================
+# Gen-Z Dynamic Placeholder Agent Endpoints (openai/gpt-oss-20b)
+# =====================================================================
+
+@app.get("/api/placeholder/next")
+async def get_next_placeholder():
+    """
+    Returns the next Gen-Z dynamic search prompt curated by PlaceholderAgent
+    powered by Groq (openai/gpt-oss-20b).
+    """
+    from src.agents.placeholder_agent import get_placeholder_agent
+    agent = get_placeholder_agent()
+    prompt = agent.get_next_prompt()
+    return {
+        "success": True,
+        "prompt": prompt,
+        "model": agent.model,
+        "interval_seconds": 10,
+        "display_duration_seconds": 3.5
+    }
+
+@app.get("/api/placeholder/batch")
+async def get_placeholder_batch(count: Optional[int] = 6):
+    """
+    Generates a fresh batch of Gen-Z fashion search prompts using openai/gpt-oss-20b.
+    """
+    from src.agents.placeholder_agent import get_placeholder_agent
+    agent = get_placeholder_agent()
+    prompts = agent.generate_fresh_batch(count=count or 6)
+    return {
+        "success": True,
+        "prompts": prompts,
+        "model": agent.model
+    }
+
+@app.get("/api/placeholder/stream")
+async def stream_placeholder():
+    """
+    Server-Sent Events (SSE) streaming token endpoint for real-time typewriter effect.
+    """
+    from src.agents.placeholder_agent import get_placeholder_agent
+
+    agent = get_placeholder_agent()
+    prompt = agent.get_next_prompt()
+
+    async def event_generator():
+        yield f"data: {json.dumps({'type': 'start', 'full_prompt': prompt})}\n\n"
+        for char in prompt:
+            yield f"data: {json.dumps({'type': 'token', 'token': char})}\n\n"
+            await asyncio.sleep(0.03)
+        yield f"data: {json.dumps({'type': 'done', 'full_prompt': prompt})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 # =====================================================================
