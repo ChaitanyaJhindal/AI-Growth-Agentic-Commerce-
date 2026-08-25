@@ -46,7 +46,16 @@ Critical Instructions:
 """
     llm = get_llm()
     structured_llm = llm.with_structured_output(QueryAnalysis)
-    analysis: QueryAnalysis = structured_llm.invoke(prompt)
+    try:
+        analysis: QueryAnalysis = structured_llm.invoke(prompt)
+    except Exception as e:
+        print(f"Notice on query parsing: {e}")
+        # Robust fallback analysis
+        analysis = QueryAnalysis(
+            intent="search",
+            cleaned_query=user_query,
+            in_stock_only=False
+        )
 
     engine = get_search_engine()
     new_filters = engine.build_filter(

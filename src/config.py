@@ -31,10 +31,10 @@ VECTOR_INDEX_NAME = os.getenv("MONGODB_VECTOR_INDEX_NAME", "vector_index")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-120b")
 
-# Embedding Configuration
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-EMBEDDING_DIM = 384
-EMBEDDING_SERVICE_URL = os.getenv("EMBEDDING_SERVICE_URL", "").rstrip("/")
+# Voyage AI Embedding Configuration (High-Performance Remote Inference)
+VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "pa-IRb8tYzm_bhrarUI5cRipZ_rgNUygFm2x62ohiCTQpr")
+VOYAGE_MODEL = os.getenv("VOYAGE_MODEL", "voyage-3-lite")
+EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "512"))
 
 # Search Text Fields for Hybrid Indexing
 SEARCH_TEXT_FIELDS = [
@@ -45,4 +45,3 @@ SEARCH_TEXT_FIELDS = [
 # Razorpay Configuration
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
-

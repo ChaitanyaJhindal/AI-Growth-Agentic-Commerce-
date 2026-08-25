@@ -1,34 +1,21 @@
 import json
+import time
 import urllib.request
 from typing import List, Dict, Any, Optional
 from src import config
 
 class EmbeddingEngine:
     """
-    Robust Dual-Mode Embedding Engine:
-    1. Remote Microservice Mode: Offloads inference to dedicated service over HTTP (zero memory load on main API).
-    2. Local Fallback Mode: Runs lightweight CPU-only SentenceTransformer locally if microservice is offline.
+    Voyage AI Embedding Engine:
+    Performs remote inference via Voyage AI API (voyage-3-lite / 512 dimensions).
+    Fast, lightweight, and requires ZERO local PyTorch/CUDA dependencies.
     """
 
-    def __init__(self, model_name: str = config.EMBEDDING_MODEL, service_url: Optional[str] = None):
-        self.model_name = model_name
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
+        self.api_key = api_key or config.VOYAGE_API_KEY
+        self.model = model or config.VOYAGE_MODEL
+        self.api_url = "https://api.voyageai.com/v1/embeddings"
         self.dimensions = config.EMBEDDING_DIM
-        self.service_url = (service_url or config.EMBEDDING_SERVICE_URL).rstrip("/")
-        self._local_model = None
-
-    @property
-    def local_model(self):
-        """Lazy-loads local SentenceTransformer model only when needed as fallback."""
-        if self._local_model is None:
-            try:
-                import torch
-                torch.set_grad_enabled(False)
-                torch.set_num_threads(1)
-            except Exception:
-                pass
-            from sentence_transformers import SentenceTransformer
-            self._local_model = SentenceTransformer(self.model_name)
-        return self._local_model
 
     @staticmethod
     def build_search_text(doc: Dict[str, Any]) -> str:
@@ -36,62 +23,101 @@ class EmbeddingEngine:
         tokens = [str(doc[f]).strip() for f in config.SEARCH_TEXT_FIELDS if doc.get(f)]
         return " ".join(tokens)
 
-    def generate_embedding(self, text: str) -> List[float]:
-        """Generates a 384-dim normalized embedding vector (remote microservice first, local fallback)."""
+    def generate_embedding(self, text: str, input_type: str = "query") -> List[float]:
+        """Generates a 512-dim normalized embedding vector via Voyage AI API (with auto-retry)."""
         if not text or not text.strip():
             return [0.0] * self.dimensions
 
         cleaned = text.strip()
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "input": [cleaned],
+            "model": self.model,
+            "input_type": input_type
+        }
 
-        # Try Remote Microservice first if configured
-        if self.service_url:
+        for attempt in range(2):
             try:
                 req = urllib.request.Request(
-                    f"{self.service_url}/embed",
-                    data=json.dumps({"text": cleaned}).encode("utf-8"),
-                    headers={"Content-Type": "application/json"}
+                    self.api_url,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers=headers
                 )
-                with urllib.request.urlopen(req, timeout=4) as res:
+                with urllib.request.urlopen(req, timeout=6) as res:
                     if res.status == 200:
                         data = json.loads(res.read().decode("utf-8"))
-                        if "embedding" in data:
-                            return data["embedding"]
+                        if "data" in data and len(data["data"]) > 0:
+                            return data["data"][0]["embedding"]
+            except urllib.error.HTTPError as e:
+                if e.code == 429 and attempt == 0:
+                    time.sleep(1.0)
+                    continue
+                break
             except Exception as e:
-                # Log and fallback seamlessly
-                pass
+                break
 
-        # Local Fallback
-        return self.local_model.encode(cleaned, normalize_embeddings=True).tolist()
+        return [0.0] * self.dimensions
 
-    def generate_embeddings_batch(self, texts: List[str], batch_size: int = 256) -> List[List[float]]:
-        """Generates embeddings for a batch of texts (remote microservice first, local fallback)."""
-        cleaned = [t if (t and t.strip()) else " " for t in texts]
+    def generate_embeddings_batch(
+        self,
+        texts: List[str],
+        input_type: str = "document",
+        batch_size: int = 64
+    ) -> List[List[float]]:
+        """Generates batch embeddings via Voyage AI API (with auto-retry)."""
+        cleaned = [t.strip() if (t and t.strip()) else " " for t in texts]
         if not cleaned:
             return []
 
-        if self.service_url:
-            try:
-                req = urllib.request.Request(
-                    f"{self.service_url}/embed/batch",
-                    data=json.dumps({"texts": cleaned}).encode("utf-8"),
-                    headers={"Content-Type": "application/json"}
-                )
-                with urllib.request.urlopen(req, timeout=10) as res:
-                    if res.status == 200:
-                        data = json.loads(res.read().decode("utf-8"))
-                        if "embeddings" in data:
-                            return data["embeddings"]
-            except Exception as e:
-                pass
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
 
-        # Local Fallback
-        return self.local_model.encode(cleaned, batch_size=batch_size, normalize_embeddings=True).tolist()
+        all_embeddings: List[List[float]] = []
+        for i in range(0, len(cleaned), batch_size):
+            chunk = cleaned[i:i + batch_size]
+            payload = {
+                "input": chunk,
+                "model": self.model,
+                "input_type": input_type
+            }
+            success = False
+            for attempt in range(2):
+                try:
+                    req = urllib.request.Request(
+                        self.api_url,
+                        data=json.dumps(payload).encode("utf-8"),
+                        headers=headers
+                    )
+                    with urllib.request.urlopen(req, timeout=20) as res:
+                        if res.status == 200:
+                            data = json.loads(res.read().decode("utf-8"))
+                            if "data" in data:
+                                all_embeddings.extend([item["embedding"] for item in data["data"]])
+                                success = True
+                                break
+                except urllib.error.HTTPError as e:
+                    if e.code == 429 and attempt == 0:
+                        time.sleep(1.5)
+                        continue
+                    break
+                except Exception:
+                    break
 
-# Lazy-loaded singleton instance
+            if not success:
+                all_embeddings.extend([[0.0] * self.dimensions] * len(chunk))
+
+        return all_embeddings
+
+# Singleton instance
 _engine: Optional[EmbeddingEngine] = None
 
 def get_embedding_engine() -> EmbeddingEngine:
-    """Returns or initializes the global EmbeddingEngine singleton."""
+    """Returns or initializes the global Voyage AI EmbeddingEngine singleton."""
     global _engine
     if _engine is None:
         _engine = EmbeddingEngine()

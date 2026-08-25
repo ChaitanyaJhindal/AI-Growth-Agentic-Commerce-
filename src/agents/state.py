@@ -14,7 +14,7 @@ class QueryAnalysis(BaseModel):
     product_category: Optional[str] = Field(
         None, description="Target product category or article type (e.g. 'Shoes', 'Shirts', 'Watches', 'Jeans')."
     )
-    attributes: List[str] = Field(
+    attributes: Optional[List[str]] = Field(
         default_factory=list,
         description="Fashion attributes (colors, style, material, season, usage)."
     )
