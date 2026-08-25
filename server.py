@@ -362,6 +362,20 @@ async def stream_placeholder():
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
+@app.get("/api/placeholder/pipeline-steps")
+async def get_pipeline_steps():
+    """
+    Returns dynamic, engaging step thoughts for the progressive revelation banner.
+    """
+    from src.agents.placeholder_agent import get_placeholder_agent
+    agent = get_placeholder_agent()
+    steps = agent.get_dynamic_pipeline_steps()
+    return {
+        "success": True,
+        "steps": steps,
+        "model": agent.model
+    }
+
 
 # =====================================================================
 # AI Agent & Search Endpoints

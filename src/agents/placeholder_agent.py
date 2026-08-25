@@ -23,11 +23,43 @@ DEFAULT_GENZ_PROMPTS = [
     "scandinavian minimalism, neutral tone crewneck sweatshirt..."
 ]
 
+# Dynamic, Engaging Pipeline Thoughts (Replaces Dry Static Text)
+DYNAMIC_PIPELINE_SETS = [
+    [
+        {"step": 1, "agent": "Query Agent", "thought": "Decoding silhouette proportions & aesthetic vibe..."},
+        {"step": 2, "agent": "Context Agent", "thought": "Cross-referencing runway trends & seasonal occasion..."},
+        {"step": 3, "agent": "Search Node", "thought": "Deep-mining 44,000+ luxury pieces with Voyage AI 512-dim vectors..."},
+        {"step": 4, "agent": "Validation Agent", "thought": "Quality-assuring fabric drape, color harmony & rating score..."},
+        {"step": 5, "agent": "Stylist Agent", "thought": "Curating bespoke capsule pairings & editorial styling advice..."}
+    ],
+    [
+        {"step": 1, "agent": "Query Agent", "thought": "Dissecting streetwear drip, fit profile & color harmony..."},
+        {"step": 2, "agent": "Context Agent", "thought": "Analyzing subtle style constraints & price-to-luxury ratio..."},
+        {"step": 3, "agent": "Search Node", "thought": "Fusing Atlas Vector Search + Keyword Rank Fusion (RRF)..."},
+        {"step": 4, "agent": "Validation Agent", "thought": "Inspecting piece compatibility & boutique in-stock status..."},
+        {"step": 5, "agent": "Stylist Agent", "thought": "Synthesizing Haute Couture styling notes for complete look..."}
+    ],
+    [
+        {"step": 1, "agent": "Query Agent", "thought": "Calibrating clean-girl & quiet luxury aesthetic parameters..."},
+        {"step": 2, "agent": "Context Agent", "thought": "Evaluating versatility for effortless day-to-night transitions..."},
+        {"step": 3, "agent": "Search Node", "thought": "Scanning catalog archive for high-affinity editorial pieces..."},
+        {"step": 4, "agent": "Validation Agent", "thought": "Verifying brand craftsmanship & silhouette integrity..."},
+        {"step": 5, "agent": "Stylist Agent", "thought": "Composing matching footwear & accessory tonal accents..."}
+    ],
+    [
+        {"step": 1, "agent": "Query Agent", "thought": "Parsing modern athleisure & tailoring specifications..."},
+        {"step": 2, "agent": "Context Agent", "thought": "Filtering occasion boundaries & climate appropriateness..."},
+        {"step": 3, "agent": "Search Node", "thought": "Querying high-dimensional embeddings across MongoDB Atlas..."},
+        {"step": 4, "agent": "Validation Agent", "thought": "Screening top recommendations against patron fit score..."},
+        {"step": 5, "agent": "Stylist Agent", "thought": "Polishing the curated ensemble with bespoke designer tips..."}
+    ]
+]
+
 class PlaceholderAgent:
     """
-    Gen-Z Aesthetic Dynamic Placeholder Agent.
+    Gen-Z Aesthetic Dynamic Placeholder & Progress Agent.
     Powered by `openai/gpt-oss-20b` on Groq (Temperature = 0.95).
-    Generates short, punchy, engaging fashion search prompts for high-converting UX.
+    Generates short, punchy, engaging fashion search prompts & dynamic pipeline thoughts.
     """
 
     def __init__(self, model: str = "openai/gpt-oss-20b"):
@@ -38,6 +70,7 @@ class PlaceholderAgent:
         self._prompt_pool: List[str] = list(DEFAULT_GENZ_PROMPTS)
         random.shuffle(self._prompt_pool)
         self._pool_index: int = 0
+        self._pipeline_set_index: int = 0
 
     def get_next_prompt(self) -> str:
         """Returns the next prompt from the active pool, rotating smoothly."""
@@ -48,6 +81,12 @@ class PlaceholderAgent:
         prompt = self._prompt_pool[self._pool_index % len(self._prompt_pool)]
         self._pool_index += 1
         return prompt
+
+    def get_dynamic_pipeline_steps(self) -> List[Dict[str, Any]]:
+        """Returns a dynamic, engaging set of agent thoughts for the progressive revelation banner."""
+        steps_set = DYNAMIC_PIPELINE_SETS[self._pipeline_set_index % len(DYNAMIC_PIPELINE_SETS)]
+        self._pipeline_set_index += 1
+        return steps_set
 
     def generate_fresh_batch(self, count: int = 6) -> List[str]:
         """Calls Groq `openai/gpt-oss-20b` to generate a fresh batch of Gen-Z search prompts."""
@@ -80,7 +119,6 @@ Rules:
             with urllib.request.urlopen(req, timeout=4) as res:
                 res_data = json.loads(res.read().decode("utf-8"))
                 raw_text = res_data["choices"][0]["message"]["content"].strip()
-                # Parse JSON array
                 if "[" in raw_text and "]" in raw_text:
                     start = raw_text.index("[")
                     end = raw_text.rindex("]") + 1

@@ -709,31 +709,137 @@ async function executeClarification(answer) {
   }
 }
 
-function handleAgentResponse(data) {
-  processingCard.style.display = "none";
+let currentPipelineInterval = null;
 
-  if (data.needs_clarification && data.clarification_question) {
-    showClarificationCard(data.clarification_question);
-    return;
+const DYNAMIC_PIPELINE_FALLBACKS = [
+  [
+    { step: 1, agent: "Query Agent", thought: "Decoding silhouette proportions & aesthetic vibe..." },
+    { step: 2, agent: "Context Agent", thought: "Cross-referencing runway trends & seasonal occasion..." },
+    { step: 3, agent: "Search Node", thought: "Deep-mining 44,000+ luxury pieces with Voyage AI 512-dim vectors..." },
+    { step: 4, agent: "Validation Agent", thought: "Quality-assuring fabric drape, color harmony & rating score..." },
+    { step: 5, agent: "Stylist Agent", thought: "Curating bespoke capsule pairings & editorial styling advice..." }
+  ],
+  [
+    { step: 1, agent: "Query Agent", thought: "Dissecting streetwear drip, fit profile & color harmony..." },
+    { step: 2, agent: "Context Agent", thought: "Analyzing subtle style constraints & price-to-luxury ratio..." },
+    { step: 3, agent: "Search Node", thought: "Fusing Atlas Vector Search + Keyword Rank Fusion (RRF)..." },
+    { step: 4, agent: "Validation Agent", thought: "Inspecting piece compatibility & boutique in-stock status..." },
+    { step: 5, agent: "Stylist Agent", thought: "Synthesizing Haute Couture styling notes for complete look..." }
+  ],
+  [
+    { step: 1, agent: "Query Agent", thought: "Calibrating clean-girl & quiet luxury aesthetic parameters..." },
+    { step: 2, agent: "Context Agent", thought: "Evaluating versatility for effortless day-to-night transitions..." },
+    { step: 3, agent: "Search Node", thought: "Scanning catalog archive for high-affinity editorial pieces..." },
+    { step: 4, agent: "Validation Agent", thought: "Verifying brand craftsmanship & silhouette integrity..." },
+    { step: 5, agent: "Stylist Agent", thought: "Composing matching footwear & accessory tonal accents..." }
+  ]
+];
+
+let pipelineSetIdx = 0;
+
+async function animateProcessingSteps() {
+  const container = document.getElementById("processing-steps");
+  const statusSub = document.getElementById("processing-status-sub");
+  if (!container) return;
+
+  if (currentPipelineInterval) {
+    clearInterval(currentPipelineInterval);
+    currentPipelineInterval = null;
   }
 
-  // Render search results & upsells
-  renderResults(data);
+  container.innerHTML = "";
+
+  // Get dynamic step thoughts from agent endpoint or fallback pool
+  let steps = DYNAMIC_PIPELINE_FALLBACKS[pipelineSetIdx % DYNAMIC_PIPELINE_FALLBACKS.length];
+  pipelineSetIdx++;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/placeholder/pipeline-steps`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.steps && data.steps.length > 0) {
+        steps = data.steps;
+      }
+    }
+  } catch (e) {
+    // Graceful fallback
+  }
+
+  // Sequentially reveal each step with smooth animations
+  let currentStepIdx = 0;
+
+  function renderStep(idx) {
+    if (idx >= steps.length) return;
+    const item = steps[idx];
+
+    // Mark previous rows as completed
+    const previousRows = container.querySelectorAll(".step-row.active");
+    previousRows.forEach(row => {
+      row.className = "step-row done";
+      const badge = row.querySelector(".step-badge");
+      if (badge) badge.textContent = "✓";
+    });
+
+    if (statusSub) {
+      statusSub.textContent = item.thought.replace("...", "");
+    }
+
+    const row = document.createElement("div");
+    row.className = "step-row active";
+    row.id = `step-row-${item.step}`;
+    row.innerHTML = `
+      <span class="step-badge">${item.step}</span>
+      <div class="step-text">
+        <span class="agent-name">${item.agent}:</span>
+        <span class="agent-thought">${item.thought}</span>
+      </div>
+    `;
+    container.appendChild(row);
+  }
+
+  // Reveal step 1 immediately
+  renderStep(0);
+
+  // Reveal subsequent steps sequentially (~400ms each)
+  currentStepIdx = 1;
+  currentPipelineInterval = setInterval(() => {
+    if (currentStepIdx < steps.length) {
+      renderStep(currentStepIdx);
+      currentStepIdx++;
+    } else {
+      clearInterval(currentPipelineInterval);
+      currentPipelineInterval = null;
+    }
+  }, 420);
 }
 
-function animateProcessingSteps() {
-  const steps = ["step-1", "step-2", "step-3", "step-4", "step-5"];
-  steps.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.className = "step";
-  });
+function handleAgentResponse(data) {
+  if (currentPipelineInterval) {
+    clearInterval(currentPipelineInterval);
+    currentPipelineInterval = null;
+  }
 
-  steps.forEach((id, index) => {
-    setTimeout(() => {
-      const el = document.getElementById(id);
-      if (el) el.className = "step active";
-    }, index * 300);
-  });
+  // Mark all steps as complete before displaying results
+  const container = document.getElementById("processing-steps");
+  if (container) {
+    container.querySelectorAll(".step-row").forEach(row => {
+      row.className = "step-row done";
+      const badge = row.querySelector(".step-badge");
+      if (badge) badge.textContent = "✓";
+    });
+  }
+
+  setTimeout(() => {
+    processingCard.style.display = "none";
+
+    if (data.needs_clarification && data.clarification_question) {
+      showClarificationCard(data.clarification_question);
+      return;
+    }
+
+    // Render search results & upsells
+    renderResults(data);
+  }, 300);
 }
 
 function showClarificationCard(question) {

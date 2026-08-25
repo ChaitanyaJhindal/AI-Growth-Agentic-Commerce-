@@ -31,8 +31,16 @@ def run_placeholder_tests():
     assert len(tokens) == 10, "Streaming tokens length mismatch"
     print(f"✓ Token Streaming verified: {''.join(tokens)}")
 
-    # Test 3: Fresh Batch Generation via openai/gpt-oss-20b
-    print("\n2. Calling Groq (openai/gpt-oss-20b) for fresh Gen-Z batch...")
+    # Test 3: Dynamic Pipeline Steps
+    print("\n2. Testing Dynamic Pipeline Steps Generation...")
+    pipeline_steps = agent.get_dynamic_pipeline_steps()
+    assert len(pipeline_steps) == 5, f"Expected 5 steps, got {len(pipeline_steps)}"
+    print(f"✓ Dynamic Pipeline Steps ({len(pipeline_steps)} steps loaded):")
+    for s in pipeline_steps:
+        print(f"   [{s['step']}] {s['agent']}: {s['thought']}")
+
+    # Test 4: Fresh Batch Generation via openai/gpt-oss-20b
+    print("\n3. Calling Groq (openai/gpt-oss-20b) for fresh Gen-Z batch...")
     batch = agent.generate_fresh_batch(count=3)
     assert len(batch) >= 1, "Failed to generate batch"
     print(f"✓ Fresh batch generated ({len(batch)} items):")
@@ -40,7 +48,7 @@ def run_placeholder_tests():
         print(f"   [{i}] {p}")
 
     print("\n" + "=" * 80)
-    print("🎉 ALL PLACEHOLDER AGENT TESTS PASSED SUCCESSFULLY!")
+    print("🎉 ALL PLACEHOLDER & PROGRESS AGENT TESTS PASSED SUCCESSFULLY!")
     print("=" * 80)
 
 if __name__ == "__main__":
