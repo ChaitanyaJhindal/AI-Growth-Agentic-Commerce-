@@ -131,7 +131,61 @@ Rules:
         except Exception as e:
             print(f"Notice on placeholder batch generation: {e}")
 
-        return DEFAULT_GENZ_PROMPTS[:count]
+    def generate_combo_suggestion(self, anchor: Dict[str, Any], pairings: List[Dict[str, Any]]) -> str:
+        """
+        Uses openai/gpt-oss-20b to synthesize a chic, tailored styling combo tip
+        based on the anchor piece and its paired recommendation pieces.
+        """
+        anchor_name = anchor.get("name", "Piece")
+        anchor_brand = anchor.get("brand", "")
+        anchor_type = anchor.get("article_type", "apparel")
+        
+        pair_names = [p.get("name", "") for p in pairings if p.get("name")]
+        
+        # Fast rule-based fallbacks for ultra-low latency & offline resilience
+        default_tips = [
+            f"Ground this {anchor_name} with sleek minimalist pairings; keep the silhouette effortless and let the clean lines define the aesthetic.",
+            f"Layer the {anchor_name} with contrasting textures to elevate the tonal depth and achieve a modern curated runway balance.",
+            f"Pair this {anchor_name} with tailored complementary tones; roll sleeves or cuff trousers slightly to highlight the silhouette and accessories."
+        ]
+        fallback_tip = random.choice(default_tips)
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "AURA-Fashion/1.0"
+        }
+
+        system_instruction = """You are AURA's Elite AI Runway Stylist & Creative Director.
+Synthesize a single, punchy 1-2 sentence styling suggestion explaining HOW to wear and pair the anchor piece with the recommended complementary pieces.
+Rules:
+1. Be concise, chic, and practical (mention tucking, layering, sleeve roll, shoe pairing, or tonal balance).
+2. Sound like an effortless personal stylist (high-vibe, modern luxury, Gen-Z / quiet luxury aesthetic).
+3. Do NOT use bullet points or markdown headers. Just 1 to 2 engaging sentences."""
+
+        prompt_user = f"Anchor Piece: {anchor_name} ({anchor_brand}, {anchor_type}).\nPaired Complementary Pieces: {', '.join(pair_names[:3])}.\nWrite 1-2 sentences on how to style this complete look combo:"
+
+        data = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": prompt_user}
+            ],
+            "temperature": 0.85,
+            "max_tokens": 120
+        }
+
+        try:
+            req = urllib.request.Request(self.api_url, data=json.dumps(data).encode("utf-8"), headers=headers)
+            with urllib.request.urlopen(req, timeout=3.5) as res:
+                res_data = json.loads(res.read().decode("utf-8"))
+                tip = res_data["choices"][0]["message"]["content"].strip()
+                if tip and len(tip) > 15:
+                    return tip.replace('"', '').strip()
+        except Exception as e:
+            print(f"Notice on combo suggestion generation: {e}")
+
+        return fallback_tip
 
     def stream_tokens(self, text: str) -> Generator[str, None, None]:
         """Yields words/tokens character-by-character for streaming typewriter effect."""

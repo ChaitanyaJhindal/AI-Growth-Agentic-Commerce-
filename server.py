@@ -376,6 +376,24 @@ async def get_pipeline_steps():
         "model": agent.model
     }
 
+class ComboSuggestionRequest(BaseModel):
+    anchor: Dict[str, Any] = Field(..., description="Selected anchor product")
+    pairings: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Complementary outfit products")
+
+@app.post("/api/placeholder/combo-suggestion")
+async def get_combo_suggestion(req: ComboSuggestionRequest):
+    """
+    Synthesizes a context-aware outfit styling combo tip using openai/gpt-oss-20b.
+    """
+    from src.agents.placeholder_agent import get_placeholder_agent
+    agent = get_placeholder_agent()
+    suggestion = agent.generate_combo_suggestion(anchor=req.anchor, pairings=req.pairings or [])
+    return {
+        "success": True,
+        "suggestion": suggestion,
+        "model": agent.model
+    }
+
 
 # =====================================================================
 # AI Agent & Search Endpoints

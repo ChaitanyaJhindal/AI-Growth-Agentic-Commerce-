@@ -983,8 +983,8 @@ async function openOutfitStudio(selectedProduct) {
     bagDrawer.style.display = "flex";
   });
 
-  // Always re-run the dynamic AI Fashion Stylist Upsell Agent specifically for this clicked product
-  stylistInsightText.textContent = `Curating bespoke complementary pieces and tonal harmony for ${selectedProduct.name}...`;
+  // Start Magic Stylist stream animation while fetching pairings
+  streamStylistInsightText(`✨ AI Runway Stylist is analyzing fabric drape, occasion, and harmonious pairings for ${selectedProduct.name}...`);
   ensembleCardsList.innerHTML = `<div style="color: var(--text-secondary); font-size: 0.85rem; padding: 1.5rem; text-align: center;">✦ AI Stylist is composing dynamic outfit pairings...</div>`;
   ensembleTotalPrice.textContent = `$${(selectedProduct.price || 55.00).toFixed(2)}`;
 
@@ -1005,13 +1005,74 @@ async function openOutfitStudio(selectedProduct) {
   renderEnsembleItems(selectedProduct, pairings);
 }
 
+let stylistInsightTypewriterTimeout = null;
+
+function streamStylistInsightText(fullText) {
+  const insightBox = document.getElementById("stylist-insight-box");
+  const insightEl = document.getElementById("stylist-insight-text");
+  if (!insightEl) return;
+
+  if (stylistInsightTypewriterTimeout) {
+    clearTimeout(stylistInsightTypewriterTimeout);
+    stylistInsightTypewriterTimeout = null;
+  }
+
+  if (insightBox) insightBox.classList.add("magic-active");
+
+  let currentIdx = 0;
+  insightEl.innerHTML = `<span class="typing-cursor"></span>`;
+
+  function typeChar() {
+    if (currentIdx <= fullText.length) {
+      insightEl.innerHTML = `${fullText.slice(0, currentIdx)}<span class="typing-cursor"></span>`;
+      currentIdx++;
+      stylistInsightTypewriterTimeout = setTimeout(typeChar, 16);
+    } else {
+      insightEl.innerHTML = fullText;
+      if (insightBox) {
+        setTimeout(() => insightBox.classList.remove("magic-active"), 1500);
+      }
+    }
+  }
+
+  typeChar();
+}
+
+async function fetchAndStreamComboStylistTip(selectedProduct, pairings) {
+  let fallbackTip = "Pairs impeccably with seasonal essentials for an elevated tonal look.";
+  if (pairings && pairings.length > 0) {
+    fallbackTip = pairings[0].stylist_note || pairings[0].compatibility_reason || fallbackTip;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/placeholder/combo-suggestion`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        anchor: selectedProduct,
+        pairings: pairings
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.suggestion && data.suggestion.trim()) {
+        streamStylistInsightText(data.suggestion.trim());
+        return;
+      }
+    }
+  } catch (err) {
+    console.log("Using fallback stylist rationale:", err);
+  }
+
+  streamStylistInsightText(fallbackTip);
+}
+
 function renderEnsembleItems(selectedProduct, pairings) {
   ensembleCardsList.innerHTML = "";
   let total = selectedProduct.price || 55.00;
 
   if (pairings && pairings.length > 0) {
-    const firstTip = pairings[0].stylist_note || pairings[0].compatibility_reason;
-    stylistInsightText.textContent = firstTip || "Pairs impeccably with seasonal essentials for an elevated tonal look.";
+    fetchAndStreamComboStylistTip(selectedProduct, pairings);
 
     pairings.forEach((item, idx) => {
       activeEnsembleProducts.push(item);
@@ -1028,7 +1089,7 @@ function renderEnsembleItems(selectedProduct, pairings) {
       ensembleCardsList.appendChild(pieceCard);
     });
   } else {
-    stylistInsightText.textContent = "A clean neutral silhouette that pairs seamlessly with minimalist denim and linen tailoring.";
+    streamStylistInsightText("A clean neutral silhouette that pairs seamlessly with minimalist denim and linen tailoring.");
   }
 
   ensembleTotalPrice.textContent = `$${total.toFixed(2)}`;

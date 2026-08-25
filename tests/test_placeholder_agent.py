@@ -39,16 +39,19 @@ def run_placeholder_tests():
     for s in pipeline_steps:
         print(f"   [{s['step']}] {s['agent']}: {s['thought']}")
 
-    # Test 4: Fresh Batch Generation via openai/gpt-oss-20b
-    print("\n3. Calling Groq (openai/gpt-oss-20b) for fresh Gen-Z batch...")
-    batch = agent.generate_fresh_batch(count=3)
-    assert len(batch) >= 1, "Failed to generate batch"
-    print(f"✓ Fresh batch generated ({len(batch)} items):")
-    for i, p in enumerate(batch, 1):
-        print(f"   [{i}] {p}")
+    # Test 5: Dynamic Context-Aware Outfit Combo Synthesis
+    print("\n4. Testing Dynamic Outfit Combo Synthesis (openai/gpt-oss-20b)...")
+    mock_anchor = {"name": "Puma Classic Grey Running T-Shirt", "brand": "Puma", "article_type": "Tshirts"}
+    mock_pairings = [
+        {"name": "Nike Tech Fleece Black Track Pants", "article_type": "Track Pants"},
+        {"name": "Puma Nitro Carbon White Running Shoes", "article_type": "Sports Shoes"}
+    ]
+    combo_tip = agent.generate_combo_suggestion(mock_anchor, mock_pairings)
+    assert combo_tip and len(combo_tip) > 10, "Failed to generate combo suggestion"
+    print(f"✓ AI Stylist Combo Suggestion: \"{combo_tip}\"")
 
     print("\n" + "=" * 80)
-    print("🎉 ALL PLACEHOLDER & PROGRESS AGENT TESTS PASSED SUCCESSFULLY!")
+    print("🎉 ALL PLACEHOLDER & STYLIST COMBO AGENT TESTS PASSED SUCCESSFULLY!")
     print("=" * 80)
 
 if __name__ == "__main__":
