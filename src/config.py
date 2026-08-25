@@ -40,3 +40,8 @@ SEARCH_TEXT_FIELDS = [
     "name", "brand", "gender", "master_category",
     "sub_category", "article_type", "base_color", "season", "usage"
 ]
+
+# Razorpay Configuration
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+

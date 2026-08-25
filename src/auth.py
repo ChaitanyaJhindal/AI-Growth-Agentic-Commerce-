@@ -168,8 +168,16 @@ class UserManager:
             "updated": res.modified_count > 0
         }
 
-    def create_order(self, email: str, items: List[Dict[str, Any]], total: float) -> Dict[str, Any]:
-        """Places a verified order in MongoDB for a registered user."""
+    def create_order(
+        self,
+        email: str,
+        items: List[Dict[str, Any]],
+        total: float,
+        payment_id: Optional[str] = None,
+        razorpay_order_id: Optional[str] = None,
+        payment_status: str = "Paid"
+    ) -> Dict[str, Any]:
+        """Places a verified paid order in MongoDB for a registered user."""
         clean_email = email.strip().lower()
         user = self.users_collection.find_one({"email": clean_email})
         if not user:
@@ -184,7 +192,9 @@ class UserManager:
             "user_name": user.get("name", "Customer"),
             "items": items,
             "total_amount": round(float(total), 2),
-            "status": "Confirmed",
+            "payment_id": payment_id,
+            "razorpay_order_id": razorpay_order_id,
+            "status": payment_status,
             "created_at": now
         }
 
@@ -198,6 +208,7 @@ class UserManager:
                 "$set": {"bag": []},
                 "$push": {"orders": {
                     "order_id": order_id,
+                    "payment_id": payment_id,
                     "items_count": len(items),
                     "total": order_doc["total_amount"],
                     "created_at": now
@@ -208,6 +219,7 @@ class UserManager:
         return {
             "success": True,
             "order_id": order_id,
+            "payment_id": payment_id,
             "total": order_doc["total_amount"],
             "created_at": now
         }

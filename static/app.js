@@ -431,37 +431,107 @@ async function executeOrderCheckout() {
   bagItems.forEach(i => total += (i.price || 0));
 
   checkoutBtn.disabled = true;
-  checkoutBtn.textContent = "Processing Order...";
+  checkoutBtn.textContent = "Initiating Payment...";
 
   try {
-    const res = await fetch(`${API_BASE}/api/orders/checkout`, {
+    // 1. Create Razorpay Order on Backend
+    const orderRes = await fetch(`${API_BASE}/api/create-order`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: currentUser.email,
-        items: bagItems,
-        total: total
+        amount: total,
+        currency: "INR",
+        receipt: `rcpt_${Date.now().toString(36)}`
       })
     });
 
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.detail || data.error || "Order placement failed.");
+    const orderData = await orderRes.json();
+    if (!orderRes.ok || !orderData.order_id) {
+      throw new Error(orderData.detail || "Failed to initialize payment gateway.");
     }
 
-    // Clear cart
-    bagItems = [];
-    localStorage.setItem("aura_bag", JSON.stringify(bagItems));
-    updateBagUI();
+    // 2. Open Razorpay Standard Checkout Modal
+    const options = {
+      key: orderData.key_id,
+      amount: orderData.amount,
+      currency: orderData.currency || "INR",
+      name: "AURA Luxury Fashion",
+      description: "Curated Fashion Capsule Order",
+      image: "https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=200&auto=format&fit=crop",
+      order_id: orderData.order_id,
+      handler: async function (response) {
+        checkoutBtn.textContent = "Verifying Payment...";
+        
+        try {
+          // 3. Verify Payment Signature on Backend
+          const verifyRes = await fetch(`${API_BASE}/api/verify-payment`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              email: currentUser.email,
+              items: bagItems,
+              total: total
+            })
+          });
 
-    // Close bag drawer and display confirmation modal
-    bagDrawer.style.display = "none";
-    if (orderRefId) orderRefId.textContent = data.order_id || "ORD-AURA-2026";
-    if (orderRefTotal) orderRefTotal.textContent = `$${total.toFixed(2)}`;
-    if (orderSuccessModal) orderSuccessModal.style.display = "flex";
+          const verifyData = await verifyRes.json();
+          if (!verifyRes.ok || !verifyData.success) {
+            throw new Error(verifyData.detail || "Payment signature verification failed.");
+          }
+
+          // Payment successfully verified & recorded in MongoDB
+          bagItems = [];
+          localStorage.setItem("aura_bag", JSON.stringify(bagItems));
+          updateBagUI();
+
+          bagDrawer.style.display = "none";
+          if (orderRefId) {
+            orderRefId.innerHTML = `${verifyData.order_id || 'ORD-AURA-2026'} <br><small style="color:var(--text-secondary);font-size:0.75rem;">(Razorpay ID: ${response.razorpay_payment_id})</small>`;
+          }
+          if (orderRefTotal) orderRefTotal.textContent = `$${total.toFixed(2)}`;
+          if (orderSuccessModal) orderSuccessModal.style.display = "flex";
+        } catch (vErr) {
+          alert(`Verification Error: ${vErr.message}`);
+        } finally {
+          checkoutBtn.disabled = false;
+          checkoutBtn.textContent = "Proceed to Checkout";
+        }
+      },
+      prefill: {
+        name: currentUser.name || "Customer",
+        email: currentUser.email || "",
+        contact: "9999999999"
+      },
+      notes: {
+        customer_email: currentUser.email,
+        item_count: bagItems.length.toString()
+      },
+      theme: {
+        color: "#c5a059" // AURA signature luxury gold accent
+      },
+      modal: {
+        ondismiss: function () {
+          console.log("Razorpay checkout modal dismissed by user");
+          checkoutBtn.disabled = false;
+          checkoutBtn.textContent = "Proceed to Checkout";
+        }
+      }
+    };
+
+    const rzp = new Razorpay(options);
+
+    rzp.on('payment.failed', function (response) {
+      alert(`Payment Failed: ${response.error.description} (Reason: ${response.error.reason})`);
+      checkoutBtn.disabled = false;
+      checkoutBtn.textContent = "Proceed to Checkout";
+    });
+
+    rzp.open();
   } catch (err) {
-    alert(`Order Error: ${err.message}`);
-  } finally {
+    alert(`Checkout Error: ${err.message}`);
     checkoutBtn.disabled = false;
     checkoutBtn.textContent = "Proceed to Checkout";
   }

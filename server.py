@@ -69,6 +69,20 @@ class CheckoutOrderRequest(BaseModel):
     total: float = Field(..., description="Total price")
 
 
+class CreateRazorpayOrderRequest(BaseModel):
+    amount: float = Field(..., description="Amount in currency units (e.g. 50.00)")
+    currency: Optional[str] = Field("INR", description="Currency code (e.g. INR)")
+    receipt: Optional[str] = Field(None, description="Receipt reference")
+
+class VerifyPaymentRequest(BaseModel):
+    razorpay_order_id: str = Field(..., description="Razorpay Order ID")
+    razorpay_payment_id: str = Field(..., description="Razorpay Payment ID")
+    razorpay_signature: str = Field(..., description="Razorpay Signature")
+    email: str = Field(..., description="User email")
+    items: List[Dict[str, Any]] = Field(default_factory=list, description="Cart items")
+    total: float = Field(..., description="Total order amount")
+
+
 # =====================================================================
 # Authentication & Order Endpoints
 # =====================================================================
@@ -115,6 +129,90 @@ async def checkout_order(req: CheckoutOrderRequest):
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Checkout failed."))
     return result
+
+
+# =====================================================================
+# Razorpay Standard Checkout Endpoints
+# =====================================================================
+
+@app.post("/api/create-order")
+async def create_order(req: CreateRazorpayOrderRequest):
+    """
+    Creates a Razorpay order.
+    Validates minimum amount (>= 100 paise).
+    Returns order_id, amount, currency, and key_id.
+    """
+    from src.payments import create_razorpay_order
+    from src import config
+
+    amount_in_paise = int(round(req.amount * 100))
+    if amount_in_paise < 100:
+        raise HTTPException(status_code=400, detail="Minimum amount must be at least 100 paise (1.00 INR).")
+
+    try:
+        order_data = create_razorpay_order(
+            amount_in_paise=amount_in_paise,
+            currency=req.currency or "INR",
+            receipt=req.receipt
+        )
+        return {
+            "order_id": order_data.get("order_id"),
+            "amount": order_data.get("amount"),
+            "currency": order_data.get("currency"),
+            "key_id": config.RAZORPAY_KEY_ID
+        }
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        traceback.print_exc()
+        err_msg = str(e)
+        if "Authentication failed" in err_msg or "Unauthorized" in err_msg:
+            raise HTTPException(status_code=401, detail="Razorpay authentication failed. Please check your API keys.")
+        raise HTTPException(status_code=500, detail=f"Failed to create Razorpay order: {err_msg}")
+
+
+@app.post("/api/verify-payment")
+async def verify_payment(req: VerifyPaymentRequest):
+    """
+    Verifies Razorpay payment signature using HMAC-SHA256.
+    If valid, marks order as paid and records it in MongoDB.
+    """
+    from src.payments import verify_razorpay_signature
+
+    if not req.razorpay_order_id or not req.razorpay_payment_id or not req.razorpay_signature:
+        raise HTTPException(status_code=400, detail="Missing required payment verification fields.")
+
+    is_valid = verify_razorpay_signature(
+        razorpay_order_id=req.razorpay_order_id,
+        razorpay_payment_id=req.razorpay_payment_id,
+        razorpay_signature=req.razorpay_signature
+    )
+
+    if not is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail="Payment verification failed: Signature mismatch. Order not recorded."
+        )
+
+    # Signature is valid -> record confirmed paid order in MongoDB
+    manager = get_user_manager()
+    order_result = manager.create_order(
+        email=req.email,
+        items=req.items,
+        total=req.total,
+        payment_id=req.razorpay_payment_id,
+        razorpay_order_id=req.razorpay_order_id,
+        payment_status="Paid (Razorpay)"
+    )
+
+    return {
+        "success": True,
+        "message": "Payment verified successfully.",
+        "order_id": order_result.get("order_id"),
+        "razorpay_payment_id": req.razorpay_payment_id,
+        "razorpay_order_id": req.razorpay_order_id
+    }
+
 
 
 # =====================================================================
