@@ -74,12 +74,24 @@ def run_auth_tests():
     assert len(profile["bag"]) == 1 and profile["bag"][0]["product_id"] == "PROD-202"
     print(f"✓ Wardrobe & Bag synchronized and verified in MongoDB! (Items: {len(profile['wardrobe'])} wardrobe, {len(profile['bag'])} bag)")
 
-    # Cleanup test user
+    # 4. Test Order Checkout
+    print("\n--- 4. Testing Order Checkout & Order Collection ---")
+    order_res = user_mgr.create_order(email=test_email, items=mock_bag, total=120.00)
+    assert order_res["success"] is True, f"Order creation failed: {order_res}"
+    print(f"✓ Order created successfully with Reference: {order_res['order_id']}")
+
+    # Verify user bag was cleared after order and order was recorded
+    updated_profile = user_mgr.get_user_profile(test_email)
+    assert len(updated_profile["bag"]) == 0, "Bag was not cleared after order checkout"
+    print(f"✓ Active shopping bag cleared and order recorded in MongoDB!")
+
+    # Cleanup test user & test order
     user_mgr.users_collection.delete_one({"email": test_email})
-    print(f"✓ Cleaned up test user document.")
+    user_mgr.db["orders"].delete_one({"order_id": order_res["order_id"]})
+    print(f"✓ Cleaned up test user & order documents.")
 
     print("\n" + "=" * 80)
-    print("🎉 ALL MONGODB AUTH & PERSISTENCE TESTS PASSED SUCCESSFULLY!")
+    print("🎉 ALL MONGODB AUTH, PERSISTENCE & CHECKOUT TESTS PASSED SUCCESSFULLY!")
     print("=" * 80)
 
 if __name__ == "__main__":

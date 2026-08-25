@@ -10,6 +10,7 @@ let currentUser = JSON.parse(localStorage.getItem("aura_user") || "null");
 let wardrobeItems = JSON.parse(localStorage.getItem("aura_wardrobe") || "[]");
 let bagItems = JSON.parse(localStorage.getItem("aura_bag") || "[]");
 let activeEnsembleProducts = [];
+let pendingCheckout = false;
 
 function generateUUID() {
   return "aura-" + Math.random().toString(36).substring(2, 9);
@@ -69,6 +70,7 @@ const bagCount = document.getElementById("bag-count");
 const drawerBagCount = document.getElementById("drawer-bag-count");
 const bagItemsList = document.getElementById("bag-items-list");
 const bagSubtotal = document.getElementById("bag-subtotal");
+const checkoutBtn = document.getElementById("checkout-btn");
 
 const wardrobeDrawer = document.getElementById("wardrobe-drawer");
 const wardrobeCloseBtn = document.getElementById("wardrobe-close-btn");
@@ -98,6 +100,14 @@ const signupName = document.getElementById("signup-name");
 const signupEmail = document.getElementById("signup-email");
 const signupPassword = document.getElementById("signup-password");
 const signupError = document.getElementById("signup-error");
+const authSkipBtn = document.getElementById("auth-skip-btn");
+
+// Order Confirmation Modal Elements
+const orderSuccessModal = document.getElementById("order-success-modal");
+const orderSuccessCloseBtn = document.getElementById("order-success-close-btn");
+const orderDoneBtn = document.getElementById("order-done-btn");
+const orderRefId = document.getElementById("order-ref-id");
+const orderRefTotal = document.getElementById("order-ref-total");
 
 // =====================================================================
 // Initialize App
@@ -153,6 +163,11 @@ function setupEventListeners() {
     bagDrawer.style.display = "flex";
   });
 
+  // Checkout Button (Login Gate)
+  if (checkoutBtn) {
+    checkoutBtn.addEventListener("click", handleCheckoutClick);
+  }
+
   // Voice Affordance
   voiceBtn.addEventListener("click", () => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -196,13 +211,29 @@ function setupEventListeners() {
 
   authCloseBtn.addEventListener("click", () => {
     authModal.style.display = "none";
+    pendingCheckout = false;
   });
+
+  if (authSkipBtn) {
+    authSkipBtn.addEventListener("click", () => {
+      authModal.style.display = "none";
+      pendingCheckout = false;
+    });
+  }
 
   tabLoginBtn.addEventListener("click", () => switchAuthTab("login"));
   tabSignupBtn.addEventListener("click", () => switchAuthTab("signup"));
 
   loginForm.addEventListener("submit", handleLoginSubmit);
   signupForm.addEventListener("submit", handleSignupSubmit);
+
+  // Order Success Modal Close
+  if (orderSuccessCloseBtn) {
+    orderSuccessCloseBtn.addEventListener("click", () => orderSuccessModal.style.display = "none");
+  }
+  if (orderDoneBtn) {
+    orderDoneBtn.addEventListener("click", () => orderSuccessModal.style.display = "none");
+  }
 }
 
 // =====================================================================
@@ -219,9 +250,13 @@ function updateAuthUI() {
   }
 }
 
-function openAuthModal(mode = "login") {
+function openAuthModal(mode = "login", isForCheckout = false) {
   authModal.style.display = "flex";
+  pendingCheckout = isForCheckout;
   switchAuthTab(mode);
+  if (isForCheckout) {
+    authModalTitle.textContent = "Sign In to Place Order";
+  }
 }
 
 function switchAuthTab(mode) {
@@ -230,14 +265,14 @@ function switchAuthTab(mode) {
     tabSignupBtn.classList.remove("active");
     loginForm.style.display = "flex";
     signupForm.style.display = "none";
-    authModalTitle.textContent = "Welcome Back";
+    authModalTitle.textContent = pendingCheckout ? "Sign In to Place Order" : "Welcome Back";
     loginError.style.display = "none";
   } else {
     tabSignupBtn.classList.add("active");
     tabLoginBtn.classList.remove("active");
     signupForm.style.display = "flex";
     loginForm.style.display = "none";
-    authModalTitle.textContent = "Join AURA";
+    authModalTitle.textContent = pendingCheckout ? "Create Account to Place Order" : "Join AURA";
     signupError.style.display = "none";
   }
 }
@@ -283,6 +318,12 @@ async function handleLoginSubmit(e) {
     updateWardrobeUI();
     authModal.style.display = "none";
     loginForm.reset();
+
+    // If user triggered login from checkout, proceed immediately
+    if (pendingCheckout) {
+      pendingCheckout = false;
+      executeOrderCheckout();
+    }
   } catch (err) {
     loginError.textContent = err.message;
     loginError.style.display = "block";
@@ -318,7 +359,6 @@ async function handleSignupSubmit(e) {
     currentUser = data.user;
     localStorage.setItem("aura_user", JSON.stringify(currentUser));
 
-    // Sync any pre-existing local cart or wardrobe to the newly created MongoDB user
     syncUserDataWithMongo();
 
     updateAuthUI();
@@ -326,6 +366,12 @@ async function handleSignupSubmit(e) {
     updateWardrobeUI();
     authModal.style.display = "none";
     signupForm.reset();
+
+    // If user triggered sign up from checkout, proceed immediately
+    if (pendingCheckout) {
+      pendingCheckout = false;
+      executeOrderCheckout();
+    }
   } catch (err) {
     signupError.textContent = err.message;
     signupError.style.display = "block";
@@ -356,6 +402,68 @@ async function syncUserDataWithMongo() {
     });
   } catch (err) {
     console.log("Notice on syncing user collections to MongoDB:", err);
+  }
+}
+
+// =====================================================================
+// Checkout & Order Placement Logic (Auth Protected)
+// =====================================================================
+
+function handleCheckoutClick() {
+  if (bagItems.length === 0) {
+    alert("Your shopping bag is empty. Please add items to proceed with checkout.");
+    return;
+  }
+
+  // If user is guest/not logged in, prompt Auth Modal with checkout context
+  if (!currentUser) {
+    openAuthModal("login", true);
+    return;
+  }
+
+  executeOrderCheckout();
+}
+
+async function executeOrderCheckout() {
+  if (bagItems.length === 0) return;
+
+  let total = 0;
+  bagItems.forEach(i => total += (i.price || 0));
+
+  checkoutBtn.disabled = true;
+  checkoutBtn.textContent = "Processing Order...";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/orders/checkout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: currentUser.email,
+        items: bagItems,
+        total: total
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.detail || data.error || "Order placement failed.");
+    }
+
+    // Clear cart
+    bagItems = [];
+    localStorage.setItem("aura_bag", JSON.stringify(bagItems));
+    updateBagUI();
+
+    // Close bag drawer and display confirmation modal
+    bagDrawer.style.display = "none";
+    if (orderRefId) orderRefId.textContent = data.order_id || "ORD-AURA-2026";
+    if (orderRefTotal) orderRefTotal.textContent = `$${total.toFixed(2)}`;
+    if (orderSuccessModal) orderSuccessModal.style.display = "flex";
+  } catch (err) {
+    alert(`Order Error: ${err.message}`);
+  } finally {
+    checkoutBtn.disabled = false;
+    checkoutBtn.textContent = "Proceed to Checkout";
   }
 }
 

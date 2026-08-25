@@ -168,6 +168,50 @@ class UserManager:
             "updated": res.modified_count > 0
         }
 
+    def create_order(self, email: str, items: List[Dict[str, Any]], total: float) -> Dict[str, Any]:
+        """Places a verified order in MongoDB for a registered user."""
+        clean_email = email.strip().lower()
+        user = self.users_collection.find_one({"email": clean_email})
+        if not user:
+            return {"success": False, "error": "User account not found."}
+
+        order_id = f"ORD-{secrets.token_hex(4).upper()}"
+        now = datetime.now(timezone.utc).isoformat()
+
+        order_doc = {
+            "order_id": order_id,
+            "user_email": clean_email,
+            "user_name": user.get("name", "Customer"),
+            "items": items,
+            "total_amount": round(float(total), 2),
+            "status": "Confirmed",
+            "created_at": now
+        }
+
+        orders_collection = self.db["orders"]
+        orders_collection.insert_one(order_doc)
+
+        # Clear user's active bag and append order to user's history
+        self.users_collection.update_one(
+            {"email": clean_email},
+            {
+                "$set": {"bag": []},
+                "$push": {"orders": {
+                    "order_id": order_id,
+                    "items_count": len(items),
+                    "total": order_doc["total_amount"],
+                    "created_at": now
+                }}
+            }
+        )
+
+        return {
+            "success": True,
+            "order_id": order_id,
+            "total": order_doc["total_amount"],
+            "created_at": now
+        }
+
 _user_manager: Optional[UserManager] = None
 
 def get_user_manager() -> UserManager:
@@ -176,3 +220,4 @@ def get_user_manager() -> UserManager:
     if _user_manager is None:
         _user_manager = UserManager()
     return _user_manager
+

@@ -327,6 +327,33 @@
         <div class="auth-error" id="signup-error" style="display: none;"></div>
         <button type="submit" class="btn-primary btn-block" id="signup-submit-btn">Create Account</button>
       </form>
+
+      <!-- Guest Skip Option -->
+      <div class="auth-guest-divider">
+        <span>or</span>
+      </div>
+      <button type="button" class="btn-guest-skip" id="auth-skip-btn">
+        Explore as Guest (Skip for now) &rarr;
+      </button>
+    </div>
+  </div>
+
+  <!-- ORDER CONFIRMATION MODAL -->
+  <div class="modal-overlay" id="order-success-modal" style="display: none;">
+    <div class="auth-modal-content" style="text-align: center;">
+      <button class="modal-close-btn" id="order-success-close-btn">&times;</button>
+      <div style="font-size: 3rem; margin-bottom: 0.5rem;">✨</div>
+      <span class="kicker">ORDER CONFIRMED</span>
+      <h2 class="auth-title">Thank You For Your Order</h2>
+      <p class="auth-subtitle" id="order-success-msg">Your curated capsule has been placed successfully and recorded in your account.</p>
+      
+      <div class="order-summary-box" style="background: var(--bg-surface-dim); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 1.25rem; margin: 1.5rem 0; text-align: left;">
+        <div style="font-size: 0.85rem; color: var(--text-secondary);">Order Reference: <strong id="order-ref-id" style="color: var(--accent-gold, #c5a059);"></strong></div>
+        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.35rem;">Total Paid: <strong id="order-ref-total" style="color: var(--text-primary);"></strong></div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.35rem;">Delivery: Complimentary Express Delivery</div>
+      </div>
+
+      <button class="btn-primary btn-block" id="order-done-btn">Continue Exploring</button>
     </div>
   </div>
 

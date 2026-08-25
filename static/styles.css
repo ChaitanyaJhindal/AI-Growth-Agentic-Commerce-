@@ -1236,6 +1236,47 @@ body {
   font-size: 0.85rem;
 }
 
+.auth-guest-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.25rem 0 0.75rem;
+  color: var(--text-muted, #71717a);
+  font-size: 0.8rem;
+}
+
+.auth-guest-divider::before,
+.auth-guest-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.auth-guest-divider span {
+  padding: 0 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.btn-guest-skip {
+  width: 100%;
+  background: none;
+  border: 1px dashed var(--border-medium);
+  color: var(--text-secondary);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.btn-guest-skip:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+  background: var(--bg-surface-dim);
+}
+
 /* =====================================================================
    13. RESPONSIVE MEDIA QUERIES
    ===================================================================== */

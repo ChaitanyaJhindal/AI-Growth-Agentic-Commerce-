@@ -63,9 +63,14 @@ class SyncUserDataRequest(BaseModel):
     wardrobe: Optional[List[Dict[str, Any]]] = None
     bag: Optional[List[Dict[str, Any]]] = None
 
+class CheckoutOrderRequest(BaseModel):
+    email: str = Field(..., description="User email")
+    items: List[Dict[str, Any]] = Field(..., description="Ordered items")
+    total: float = Field(..., description="Total price")
+
 
 # =====================================================================
-# Authentication Endpoints
+# Authentication & Order Endpoints
 # =====================================================================
 
 @app.post("/api/auth/signup")
@@ -100,6 +105,15 @@ async def sync_user_data(req: SyncUserDataRequest):
     """Synchronizes user's shopping bag and wardrobe into MongoDB."""
     manager = get_user_manager()
     result = manager.sync_user_data(email=req.email, wardrobe=req.wardrobe, bag=req.bag)
+    return result
+
+@app.post("/api/orders/checkout")
+async def checkout_order(req: CheckoutOrderRequest):
+    """Places an order for the authenticated user and persists it in MongoDB."""
+    manager = get_user_manager()
+    result = manager.create_order(email=req.email, items=req.items, total=req.total)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Checkout failed."))
     return result
 
 
