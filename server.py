@@ -1,6 +1,7 @@
 import os
 import uuid
 import traceback
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -82,6 +83,34 @@ class VerifyPaymentRequest(BaseModel):
     email: str = Field(..., description="User email")
     items: List[Dict[str, Any]] = Field(default_factory=list, description="Cart items")
     total: float = Field(..., description="Total order amount")
+
+
+# =====================================================================
+# Health Check & Uptime Monitoring Endpoints (Keep-Alive Cron)
+# =====================================================================
+
+@app.get("/health")
+@app.get("/api/health")
+async def health_check():
+    """
+    Health check endpoint for cron jobs (e.g. Cron-job.org),
+    uptime monitors (UptimeRobot, BetterUptime), and Render keep-alive pings.
+    """
+    db_status = "connected"
+    try:
+        engine = get_search_engine()
+        # Fast non-blocking ping to MongoDB Atlas
+        engine.collection.database.command("ping")
+    except Exception as e:
+        db_status = f"degraded: {str(e)}"
+
+    return {
+        "status": "healthy",
+        "service": "AURA AI Luxury Fashion Concierge",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "database": db_status,
+        "version": "1.0.0"
+    }
 
 
 # =====================================================================
