@@ -1,25 +1,25 @@
 import os
-from typing import Optional
+from typing import Optional, Dict
 from langchain_groq import ChatGroq
 from src import config
 from src.search.engine import ProductHybridSearchEngine
 
-# Lazy initialization of LLM
-_llm: Optional[ChatGroq] = None
+# LLM Cache per temperature
+_llm_cache: Dict[float, ChatGroq] = {}
 
-def get_llm() -> ChatGroq:
-    """Returns the shared ChatGroq LLM instance (lazy initialized)."""
-    global _llm
-    if _llm is None:
+def get_llm(temperature: float = 0.1) -> ChatGroq:
+    """Returns a ChatGroq LLM instance configured with the specified temperature (cached)."""
+    global _llm_cache
+    if temperature not in _llm_cache:
         groq_api_key = config.GROQ_API_KEY
         if not groq_api_key:
             raise ValueError("GROQ_API_KEY environment variable is missing. Please set it in your .env file.")
-        _llm = ChatGroq(
+        _llm_cache[temperature] = ChatGroq(
             model=config.LLM_MODEL,
-            temperature=0.1,
+            temperature=temperature,
             api_key=groq_api_key
         )
-    return _llm
+    return _llm_cache[temperature]
 
 # Lazy initialization of Search Engine
 _search_engine: Optional[ProductHybridSearchEngine] = None
