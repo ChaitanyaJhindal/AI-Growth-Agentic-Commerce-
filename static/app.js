@@ -816,7 +816,7 @@ function renderResults(data) {
 
     // Attach outfit studio open
     card.querySelector(".explore-outfit-btn").addEventListener("click", () => {
-      openOutfitStudio(prod, data.upsell_results || []);
+      openOutfitStudio(prod);
     });
 
     productsGrid.appendChild(card);
@@ -855,7 +855,7 @@ function renderFilterPills(filters) {
 // Outfit Studio Modal ("Complete The Look")
 // =====================================================================
 
-async function openOutfitStudio(selectedProduct, preloadedUpsells = []) {
+async function openOutfitStudio(selectedProduct) {
   outfitModal.style.display = "flex";
   activeEnsembleProducts = [selectedProduct];
 
@@ -876,24 +876,23 @@ async function openOutfitStudio(selectedProduct, preloadedUpsells = []) {
     bagDrawer.style.display = "flex";
   });
 
-  // Render Right Ensemble Panel
-  let pairings = preloadedUpsells;
-  if (!pairings || pairings.length === 0) {
-    stylistInsightText.textContent = "Curating complementary wardrobe pieces from catalog...";
-    ensembleCardsList.innerHTML = `<div style="color: var(--text-secondary); font-size: 0.85rem;">Finding matching pairings...</div>`;
-    
-    try {
-      const res = await fetch(`${API_BASE}/api/outfit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product_id: selectedProduct.product_id })
-      });
-      const data = await res.json();
-      pairings = data.outfit_pairings || [];
-    } catch (e) {
-      console.error(e);
-      pairings = [];
-    }
+  // Always re-run the dynamic AI Fashion Stylist Upsell Agent specifically for this clicked product
+  stylistInsightText.textContent = `Curating bespoke complementary pieces and tonal harmony for ${selectedProduct.name}...`;
+  ensembleCardsList.innerHTML = `<div style="color: var(--text-secondary); font-size: 0.85rem; padding: 1.5rem; text-align: center;">✦ AI Stylist is composing dynamic outfit pairings...</div>`;
+  ensembleTotalPrice.textContent = `$${(selectedProduct.price || 55.00).toFixed(2)}`;
+
+  let pairings = [];
+  try {
+    const res = await fetch(`${API_BASE}/api/outfit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product_id: selectedProduct.product_id })
+    });
+    const data = await res.json();
+    pairings = data.outfit_pairings || [];
+  } catch (e) {
+    console.error("Error generating outfit pairings:", e);
+    pairings = [];
   }
 
   renderEnsembleItems(selectedProduct, pairings);

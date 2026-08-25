@@ -391,6 +391,17 @@ async def generate_outfit_for_product(req: OutfitRequest):
     engine = get_search_engine()
     doc = engine.collection.find_one({"product_id": req.product_id})
     if not doc:
+        try:
+            doc = engine.collection.find_one({"product_id": int(req.product_id)})
+        except (ValueError, TypeError):
+            pass
+    if not doc:
+        # Fallback search by ID or name
+        res = engine.hybrid_search(str(req.product_id), limit=1)
+        if res:
+            doc = res[0]
+            
+    if not doc:
         raise HTTPException(status_code=404, detail="Product not found")
 
     selected = serialize_doc(doc)
