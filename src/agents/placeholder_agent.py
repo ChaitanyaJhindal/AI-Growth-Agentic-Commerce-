@@ -5,22 +5,22 @@ import urllib.request
 from typing import List, Dict, Any, Generator, AsyncGenerator
 from src import config
 
-# Curated High-Vibe Gen-Z Fashion Prompts Buffer
-DEFAULT_GENZ_PROMPTS = [
-    "main character energy, black oversized tailored blazer...",
-    "clean girl aesthetic linen button-down for Sunday brunch...",
-    "drop a vibe for a late night rooftop fit under $90...",
-    "coastal granddaughter mood, breezy white sundress...",
-    "stealth wealth minimal white leather sneakers on a budget...",
-    "y2k vintage chronograph watch for the ultimate wrist flex...",
-    "gym rat chic, breathable dry-fit compression tee under $40...",
-    "quiet luxury cashmere knit sweater for evening dinner...",
-    "blokecore retro jersey drip paired with relaxed denim...",
-    "streetwear essentials, matte black cargo trousers under $60...",
-    "old money aesthetic polo shirt in rich navy blue...",
-    "dark academia tailored trousers with a structured leather belt...",
-    "sunset festival outfit, crochet top with vintage sunglasses...",
-    "scandinavian minimalism, neutral tone crewneck sweatshirt..."
+# Curated Simple, Natural & Catalog-Grounded Search Prompts
+DEFAULT_CATALOG_PROMPTS = [
+    "Minimal black running sneakers under $80...",
+    "Blue casual cotton shirt for dinner...",
+    "White summer linen dress under $60...",
+    "Men slim fit black formal trousers...",
+    "Classic silver chronograph watch under $100...",
+    "Navy blue hooded sweatshirt for winter...",
+    "Women casual floral print top under $45...",
+    "Puma breathable sports running shoes...",
+    "Beige tailored semi-formal blazer...",
+    "Black leather crossbody handbag...",
+    "Olive green casual cargo pants...",
+    "Red round neck cotton t-shirt under $30...",
+    "Brown formal leather shoes for office...",
+    "Unisex vintage black sunglasses..."
 ]
 
 # Dynamic, Engaging Pipeline Thoughts (Replaces Dry Static Text)
@@ -57,9 +57,9 @@ DYNAMIC_PIPELINE_SETS = [
 
 class PlaceholderAgent:
     """
-    Gen-Z Aesthetic Dynamic Placeholder & Progress Agent.
-    Powered by `openai/gpt-oss-20b` on Groq (Temperature = 0.95).
-    Generates short, punchy, engaging fashion search prompts & dynamic pipeline thoughts.
+    Dynamic Search Placeholder & Progress Agent.
+    Powered by `openai/gpt-oss-20b` on Groq (Temperature = 0.85).
+    Generates clear, simple, intuitive fashion search prompts & dynamic pipeline thoughts.
     """
 
     def __init__(self, model: str = "openai/gpt-oss-20b"):
@@ -67,7 +67,7 @@ class PlaceholderAgent:
         # Use Key 2 (Context/Validation key) or fallback for lowest latency
         self.api_key = config.GROQ_API_KEY_CONTEXT or config.GROQ_API_KEY_QUERY or config.GROQ_API_KEY
         self.api_url = "https://api.groq.com/openai/v1/chat/completions"
-        self._prompt_pool: List[str] = list(DEFAULT_GENZ_PROMPTS)
+        self._prompt_pool: List[str] = list(DEFAULT_CATALOG_PROMPTS)
         random.shuffle(self._prompt_pool)
         self._pool_index: int = 0
         self._pipeline_set_index: int = 0
@@ -75,7 +75,7 @@ class PlaceholderAgent:
     def get_next_prompt(self) -> str:
         """Returns the next prompt from the active pool, rotating smoothly."""
         if not self._prompt_pool:
-            self._prompt_pool = list(DEFAULT_GENZ_PROMPTS)
+            self._prompt_pool = list(DEFAULT_CATALOG_PROMPTS)
             random.shuffle(self._prompt_pool)
 
         prompt = self._prompt_pool[self._pool_index % len(self._prompt_pool)]
@@ -89,29 +89,39 @@ class PlaceholderAgent:
         return steps_set
 
     def generate_fresh_batch(self, count: int = 6) -> List[str]:
-        """Calls Groq `openai/gpt-oss-20b` to generate a fresh batch of Gen-Z search prompts."""
+        """Calls Groq `openai/gpt-oss-20b` to generate fresh, clear, catalog-grounded search prompts."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
             "User-Agent": "AURA-Fashion/1.0"
         }
 
-        system_instruction = """You are a Gen-Z High-Fashion Trendsetter & UX Copywriter for AURA Luxury Concierge.
-Generate creative, short, catchy fashion search queries that Gen-Z and luxury shoppers would type in an AI search bar.
+        system_instruction = """You are AURA's UX Fashion Search Guide.
+Generate simple, clear, intuitive, and realistic fashion search queries that real everyday shoppers and new users would type in an e-commerce search bar.
+Catalog context: We have 44,000+ items across Shirts, T-shirts, Jeans, Trousers, Sneakers, Formal Shoes, Watches, Dresses, Handbags, Sunglasses, Blazers, and Jackets for Men & Women with price filters (e.g., under $50, under $80).
+
 Rules:
-1. Keep each prompt between 5 to 10 words.
-2. Use aesthetics like: 'clean girl', 'old money', 'streetwear drip', 'coastal granddaughter', 'quiet luxury', 'dark academia', 'y2k', 'main character'.
-3. Mention realistic fashion items (blazers, sneakers, linen shirts, watches, cargo pants, sunglasses, dresses, hoodies).
-4. End each prompt with '...'
-5. Return ONLY a valid JSON array of strings."""
+1. Make every prompt simple, natural, and immediately intuitive for a new shopper to understand.
+2. Combine: [Color or Fit] + [Clothing/Footwear Item] + [Optional Occasion or Price Filter]
+   Examples of ideal queries:
+   - 'Minimal black running sneakers under $80...'
+   - 'Blue casual cotton shirt for dinner...'
+   - 'White summer linen dress under $60...'
+   - 'Men slim fit black trousers...'
+   - 'Classic leather watch under $100...'
+   - 'Women floral top for weekend brunch...'
+3. Keep each query between 4 to 8 words.
+4. Do NOT use overly complex, cryptic, or obscure internet slang. Keep it clear, elegant, and realistic.
+5. End each prompt with '...'
+6. Return ONLY a valid JSON array of strings."""
 
         data = {
             "model": self.model,
             "messages": [
                 {"role": "system", "content": system_instruction},
-                {"role": "user", "content": f"Generate {count} unique Gen-Z fashion search prompts as JSON array."}
+                {"role": "user", "content": f"Generate {count} simple, realistic fashion search prompts as JSON array."}
             ],
-            "temperature": 0.95
+            "temperature": 0.85
         }
 
         try:
@@ -130,6 +140,8 @@ Rules:
                             return cleaned
         except Exception as e:
             print(f"Notice on placeholder batch generation: {e}")
+
+        return DEFAULT_CATALOG_PROMPTS[:count]
 
     def generate_combo_suggestion(self, anchor: Dict[str, Any], pairings: List[Dict[str, Any]]) -> str:
         """

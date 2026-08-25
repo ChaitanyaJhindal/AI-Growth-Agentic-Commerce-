@@ -1271,25 +1271,27 @@ async function loadTrendingCurations() {
 }
 
 // =====================================================================
-// Gen-Z Dynamic Streaming Placeholder Agent (openai/gpt-oss-20b)
+// Dynamic Streaming Placeholder Agent (openai/gpt-oss-20b)
 // =====================================================================
 
-const DEFAULT_GENZ_PROMPTS_CLIENT = [
-  "main character energy, black oversized tailored blazer...",
-  "clean girl aesthetic linen button-down for Sunday brunch...",
-  "drop a vibe for a late night rooftop fit under $90...",
-  "coastal granddaughter mood, breezy white sundress...",
-  "stealth wealth minimal white leather sneakers on a budget...",
-  "y2k vintage chronograph watch for the ultimate wrist flex...",
-  "gym rat chic, breathable dry-fit compression tee under $40...",
-  "quiet luxury cashmere knit sweater for evening dinner...",
-  "blokecore retro jersey drip paired with relaxed denim...",
-  "streetwear essentials, matte black cargo trousers under $60...",
-  "old money aesthetic polo shirt in rich navy blue...",
-  "dark academia tailored trousers with structured leather belt..."
+const DEFAULT_CATALOG_PROMPTS_CLIENT = [
+  "Minimal black running sneakers under $80...",
+  "Blue casual cotton shirt for dinner...",
+  "White summer linen dress under $60...",
+  "Men slim fit black formal trousers...",
+  "Classic silver chronograph watch under $100...",
+  "Navy blue hooded sweatshirt for winter...",
+  "Women casual floral print top under $45...",
+  "Puma breathable sports running shoes...",
+  "Beige tailored semi-formal blazer...",
+  "Black leather crossbody handbag...",
+  "Olive green casual cargo pants...",
+  "Red round neck cotton t-shirt under $30...",
+  "Brown formal leather shoes for office...",
+  "Unisex vintage black sunglasses..."
 ];
 
-let placeholderPool = [...DEFAULT_GENZ_PROMPTS_CLIENT];
+let placeholderPool = [...DEFAULT_CATALOG_PROMPTS_CLIENT];
 let placeholderIndex = 0;
 let isUserTypingOrFocused = false;
 let currentTypewriterTimeout = null;
