@@ -1,7 +1,7 @@
 import sys
 import argparse
 from tabulate import tabulate
-from hybrid_search import ProductHybridSearchEngine
+from src.search.engine import ProductHybridSearchEngine
 
 def run():
     if hasattr(sys.stdout, 'reconfigure'):

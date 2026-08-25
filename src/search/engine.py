@@ -1,11 +1,11 @@
 from typing import List, Dict, Any, Optional
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
-import config
-from embedding_engine import get_embedding_engine
+from src import config
+from src.search.embeddings import get_embedding_engine
 
 def serialize_doc(doc: dict) -> dict:
-    """Ensures document is JSON/msgpack serializable (e.g. stringifying ObjectId)."""
+    """Ensures MongoDB document is JSON/msgpack serializable (e.g. converting ObjectId)."""
     if "_id" in doc:
         doc["_id"] = str(doc["_id"])
     return doc
@@ -31,8 +31,11 @@ ARTICLE_TYPE_SYNONYMS = {
 class ProductHybridSearchEngine:
     """Combines Atlas Vector Search + MongoDB Text Search + Metadata Filtering via RRF."""
 
-    def __init__(self, uri: str = None):
-        self.client = MongoClient(uri or config.MONGODB_URI, server_api=ServerApi('1'))
+    def __init__(self, uri: Optional[str] = None):
+        connection_uri = uri or config.MONGODB_URI
+        if not connection_uri:
+            raise ValueError("MONGODB_URI or MONGODB_PASSWORD environment variable is required.")
+        self.client = MongoClient(connection_uri, server_api=ServerApi('1'))
         self.collection = self.client[config.DB_NAME][config.COLLECTION_NAME]
         self.engine = get_embedding_engine()
 
@@ -83,8 +86,8 @@ class ProductHybridSearchEngine:
 
         return query
 
-    def vector_search(self, query: str, filter_dict: dict = None, limit: int = 20) -> List[dict]:
-        """Runs Atlas Vector Search using all-MiniLM-L6-v2."""
+    def vector_search(self, query: str, filter_dict: Optional[dict] = None, limit: int = 20) -> List[dict]:
+        """Runs Atlas Vector Search using sentence-transformers embedding."""
         vec = self.engine.generate_embedding(query)
         stage = {
             "$vectorSearch": {
@@ -104,8 +107,8 @@ class ProductHybridSearchEngine:
         except Exception:
             return []
 
-    def keyword_search(self, query: str, filter_dict: dict = None, limit: int = 20) -> List[dict]:
-        """Runs MongoDB text keyword search."""
+    def keyword_search(self, query: str, filter_dict: Optional[dict] = None, limit: int = 20) -> List[dict]:
+        """Runs MongoDB text keyword search with regex fallback."""
         match = {"$text": {"$search": query}}
         if filter_dict:
             match.update(filter_dict)
@@ -128,7 +131,7 @@ class ProductHybridSearchEngine:
     def hybrid_search(
         self,
         query: str,
-        filter_dict: dict = None,
+        filter_dict: Optional[dict] = None,
         vec_weight: float = 0.6,
         kw_weight: float = 0.4,
         rrf_k: int = 60,

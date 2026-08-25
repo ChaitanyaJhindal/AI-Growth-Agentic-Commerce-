@@ -1,7 +1,6 @@
-import json
 from pymongo.collection import Collection
 from pymongo.operations import SearchIndexModel
-import config
+from src import config
 
 VECTOR_INDEX_DEF = {
     "fields": [
@@ -21,7 +20,7 @@ VECTOR_INDEX_DEF = {
 }
 
 def setup_indexes(collection: Collection):
-    """Creates text, filter, and Atlas vector search indexes."""
+    """Creates unique ID, text search, metadata filter, and Atlas vector search indexes."""
     # 1. Unique ID index
     collection.create_index("product_id", unique=True)
 

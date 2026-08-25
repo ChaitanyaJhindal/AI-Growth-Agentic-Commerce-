@@ -6,14 +6,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from dotenv import load_dotenv
 
-load_dotenv()
-
-from agent_graph import agent_app
-from agent_state import AgentState
-from hybrid_search import ProductHybridSearchEngine, serialize_doc
-from agents import upsell_agent_node, get_search_engine
+from src.agents.workflow import agent_app
+from src.agents.state import AgentState
+from src.agents.nodes import upsell_agent_node, get_search_engine
+from src.search.engine import serialize_doc
 
 # Initialize FastAPI
 app = FastAPI(
@@ -22,7 +19,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Enable CORS for local and web development
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -32,7 +29,7 @@ app.add_middleware(
 )
 
 # =====================================================================
-# Request / Response Pydantic Models
+# Request / Response Models
 # =====================================================================
 
 class ChatRequest(BaseModel):
@@ -71,7 +68,6 @@ async def handle_chat(req: ChatRequest):
             "original_query": req.message
         }
 
-        # Invoke LangGraph agent app
         result_state = agent_app.invoke(input_state, config=config)
 
         search_results = [serialize_doc(p) for p in result_state.get("search_results", [])]
@@ -94,7 +90,7 @@ async def handle_chat(req: ChatRequest):
         }
     except Exception as e:
         traceback.print_exc()
-        # Fallback to direct hybrid search if agent LLM has a temporary glitch
+        # Fallback to direct hybrid search if agent LLM encounters an unexpected issue
         engine = get_search_engine()
         results = engine.hybrid_search(req.message, limit=15)
         return {

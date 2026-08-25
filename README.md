@@ -1,128 +1,153 @@
-# MongoDB Atlas + LangGraph Agentic E-Commerce System
+# AURA — AI-Native Luxury Fashion Concierge & Agentic Commerce System
 
-Multi-Agent AI E-Commerce Shopping Assistant built with **LangGraph**, **Groq LLM (`openai/gpt-oss-120b`)**, **MongoDB Atlas Hybrid Search**, and **PyMongo**.
+A multi-agent conversational e-commerce shopping assistant built with **LangGraph**, **Groq LLM (`openai/gpt-oss-120b`)**, **MongoDB Atlas Hybrid Search**, and **FastAPI**.
 
 ---
 
 ## 🤖 Agentic Architecture (LangGraph Workflow)
 
 ```
-                       User Query
-                           │
-                           ▼
-                    ┌──────────────┐
-                    │ Query Agent  │ ── Parses intent, attributes, & constraints
-                    └──────┬───────┘
-                           │
-                           ▼
-                   ┌───────────────┐
-                   │ Context Agent │ ── Evaluates context completeness
-                   └───────┬───────┘
-                           │
-              ┌────────────┴────────────┐
-              ▼                         ▼
-      [Needs Clarification?]    [Has Enough Context?]
-              │                         │
-     Ask Follow-up Question        Search Node
-      (Max 2 user turns)                │
-                                        ▼
-                               ┌──────────────────┐
-                               │ Validation Agent │ ── Checks product relevance
-                               └────────┬─────────┘
-                                        │
-                         ┌──────────────┴──────────────┐
-                         ▼                             ▼
-                 [Validation Failed]            [Validation Passed]
-                 (Rewrite query & retry)               │
-                         │                             ▼
-                         └──────────────►       ┌──────────────┐
-                                                │ Upsell Agent │ ── Recommends outfits
-                                                └──────┬───────┘
-                                                       │
-                                                       ▼
-                                                 Final Results
+                       User Query / Interaction
+                                  │
+                                  ▼
+                     ┌──────────────────────────┐
+                     │     1. Query Agent       │ ── Parses intent, attributes, & active filters
+                     └────────────┬─────────────┘
+                                  │
+                                  ▼
+                     ┌──────────────────────────┐
+                     │     2. Context Agent     │ ── Evaluates context completeness
+                     └────────────┬─────────────┘
+                                  │
+                     ┌────────────┴────────────┐
+                     ▼                         ▼
+             [Needs Clarification?]    [Has Enough Context?]
+                     │                         │
+            Ask Follow-up Question             ▼
+             (Max 2 user turns)      ┌──────────────────┐
+                                     │  3. Search Node  │ ── Atlas Vector Search + Text Search + RRF
+                                     └─────────┬────────┘
+                                               │
+                                               ▼
+                                     ┌──────────────────┐
+                                     │ 4. Validation    │ ── Verifies result relevance
+                                     └─────────┬────────┘
+                                               │
+                                ┌──────────────┴──────────────┐
+                                ▼                             ▼
+                        [Validation Failed]            [Validation Passed]
+                       (Rewrite query & retry)                │
+                                │                             ▼
+                                └──────────────►     ┌──────────────────┐
+                                                     │  5. Upsell Agent │ ── Styles complementary outfits
+                                                     └────────┬─────────┘
+                                                              │
+                                                              ▼
+                                                        Final Results
 ```
 
-### 1. The 5 Core Agents & Nodes
+### The 5 Core Agents & Nodes
 
-| Agent / Node | Role | Implementation |
+| Node | Role | Implementation |
 | :--- | :--- | :--- |
-| **1. Query Agent** | Extracts intent, category, brand, gender, price range, and attributes. | Structured Pydantic extraction using Groq `openai/gpt-oss-120b`. |
-| **2. Context Agent** | Checks if query has enough context. Asks **at most 1 concise question** if critically vague (max 2 rounds). | Interactive follow-up loop. |
-| **3. Search Node** | **Deterministic tool node**. Executes `hybrid_search(query, filters)` against MongoDB Atlas. | PyMongo `$vectorSearch` + `$text` + RRF fusion (no LLM decision). |
-| **4. Validation Agent** | Validates retrieved products against requirements. Rewrites query if mismatched (max 2 retries). | Quality control agent with retry feedback loop. |
-| **5. Upsell Agent** | Recommends matching complementary products (e.g. Shoes → Socks/Pants, Shirts → Trousers/Watches). | Searches matching categories and uses LLM to rank outfit compatibility. |
+| **1. Query Agent** | Extracts intent, category, brand, gender, price limits, and attributes. | Structured Pydantic extraction using Groq `openai/gpt-oss-120b`. |
+| **2. Context Agent** | Evaluates if query is actionable. Generates 1 concise question if vague. | Interactive clarification loop (max 2 rounds). |
+| **3. Search Node** | **Deterministic tool node**. Executes `hybrid_search` against MongoDB Atlas. | PyMongo `$vectorSearch` + `$text` + Reciprocal Rank Fusion (RRF). |
+| **4. Validation Agent** | Validates product matches against user criteria; triggers query rewrite retry if needed. | Quality control with retry loop (max 2 retries). |
+| **5. Upsell Agent** | AI Fashion Stylist recommending matching complementary items. | Complementary category mapping + LLM style harmony ranking. |
 
 ---
 
-## 🚀 Running the Interactive Agent CLI
+## 📁 Clean & Modular Project Layout
 
-Run the multi-agent conversational shopping assistant in your terminal:
+```
+AI Growth & Agentic Commerce/
+├── data/                           # Catalog datasets & Atlas index schema
+│   ├── products_catalog.json
+│   ├── products_catalog.csv
+│   ├── products_catalog.xlsx
+│   └── atlas_vector_search_index.json
+├── src/                            # Core application source code
+│   ├── __init__.py
+│   ├── config.py                   # Environment & runtime configuration
+│   ├── search/                     # Hybrid search & vector embedding engine
+│   │   ├── __init__.py
+│   │   ├── embeddings.py           # 384-dim SentenceTransformer embedding singleton
+│   │   ├── engine.py               # Hybrid Search (Vector + Text + RRF ranking)
+│   │   └── indexing.py             # Atlas vector search & metadata indexing
+│   └── agents/                     # LangGraph Multi-Agent system
+│       ├── __init__.py
+│       ├── state.py                # Pydantic structured schemas & AgentState
+│       ├── nodes.py                # The 5 agent nodes (Query, Context, Search, Validation, Upsell)
+│       └── workflow.py             # LangGraph StateGraph & memory checkpointer
+├── static/                         # Web UI frontend assets
+│   ├── index.html                  # Luxury fashion concierge web interface
+│   ├── styles.css                  # Modern dark-mode styling
+│   └── app.js                      # Client state, dynamic filtering & outfit studio
+├── tests/                          # Automated verification test suites
+│   ├── test_agents.py              # End-to-end agent workflow tests
+│   └── test_conversation.py        # Multi-turn dialogue persistence test
+├── scripts/                        # Utility & operational scripts
+│   └── ingest.py                   # Bulk catalog ingestion to MongoDB Atlas
+├── server.py                       # Root Entrypoint: FastAPI web server (http://127.0.0.1:8000)
+├── agent_cli.py                    # Root Entrypoint: Interactive terminal shopping assistant
+├── search_cli.py                   # Root Entrypoint: Direct hybrid search CLI
+├── requirements.txt                # Pinned dependencies
+├── .env.example                    # Environment configuration template
+└── README.md
+```
 
+---
+
+## ⚡ Quick Start Guide
+
+### 1. Installation
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Configure Environment
+Copy `.env.example` to `.env` and provide your credentials:
+```ini
+MONGODB_PASSWORD=your_mongodb_password
+GROQ_API_KEY=your_groq_api_key
+```
+
+### 3. Ingest Data (Optional / First Time Setup)
+```bash
+python scripts/ingest.py --file data/products_catalog.json
+```
+
+---
+
+## 🚀 Running the Applications
+
+### 🌐 Option A: Launch Web Concierge (FastAPI + Modern Web UI)
+```bash
+python server.py
+```
+Open **`http://127.0.0.1:8000`** in your browser to experience the full AURA AI luxury fashion concierge.
+
+### 💻 Option B: Run Interactive Terminal Shopping Assistant
 ```bash
 python agent_cli.py
 ```
 
-### Example 1: Specific Query Flow
-```
-Enter your shopping request: casual blue shirts for men under 60
-
-[LangGraph] Processing agent pipeline...
-Intent Extracted:   search
-Parsed Search Term: 'casual blue shirts for men'
-Active Filters:     {'gender': 'Men', 'article_type': 'Shirts', 'price': {'$lte': 60.0}}
-Validation Status:  PASSED
-
-Validated Search Results (15 items):
-+-----+------------+----------------------------------+----------+---------------+---------+---------+---------+-----------+-------------+
-|   # | ID         | Name                             | Brand    | Gender/Type   | Color   | Price   | Rating  | RRF Score |
-+=====+============+==================================+==========+===============+=========+=========+=========+===========+=============+
-|   1 | PROD-15970 | Turtle Check Men Navy Blue Shirt | Turtle   | Men / Shirts  | Navy    | $51.38  | 4.1     | 0.015584  |
-...
-
-AI Fashion Stylist Outfit Recommendations (Upsell & Cross-Sell):
-[Look #1] Basics Men Black Trousers ($58.91) - Black Trousers
-  * Compatibility: Classic contrast pairing navy blue shirt with black trousers.
-  * Stylist Tip:   Tuck in the front, add a brown leather belt and casual loafers.
-```
-
-### Example 2: Clarification Flow
-```
-Enter your shopping request: I want sneakers
-
-[LangGraph] Processing agent pipeline...
-🤖 Context Agent Follow-up:
-   "Are you looking for men's or women's sneakers, and do you have a target budget?"
-
-Your answer: Men's running sneakers under $80
-
-[LangGraph] Processing agent pipeline...
-Validation Status:  PASSED
-... (Returns 15 validated Men's running sneakers under $80 with matching sportswear upsells)
-```
-
----
-
-## 🧪 Automated Agent Testing
-
-Run the full end-to-end test suite for all 5 agents:
+### 🔍 Option C: Run Direct Hybrid Search CLI
 ```bash
-python test_agents.py
+python search_cli.py "casual blue shirts" --gender Men --max-price 60
 ```
 
 ---
 
-## 📁 File Structure
+## 🧪 Running Automated Tests
 
+Run the full end-to-end agent test suite:
+```bash
+python tests/test_agents.py
 ```
-├── agent_state.py          # Pydantic models & LangGraph AgentState TypedDict
-├── agents.py               # QueryAgent, ContextAgent, SearchNode, ValidationAgent, UpsellAgent
-├── agent_graph.py          # LangGraph StateGraph assembly and conditional edges
-├── agent_cli.py            # Interactive terminal CLI with follow-up loops
-├── test_agents.py          # Automated multi-agent workflow verification test suite
-├── hybrid_search.py        # MongoDB Atlas Vector Search + Text Search + RRF Engine
-├── embedding_engine.py     # Sentence-Transformers (all-MiniLM-L6-v2, 384 dims)
-├── index_manager.py        # MongoDB Atlas Vector Search & text indexes
-├── ingest.py               # Fast bulk dataset ingestion script
-└── config.py               # Configuration & DNS resolver fallback
+
+Run the multi-turn conversational persistence test:
+```bash
+python tests/test_conversation.py
 ```

@@ -1,7 +1,11 @@
+import os
 import sys
-import json
-from agent_graph import agent_app
-from agent_state import AgentState
+
+# Ensure project root is in sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from src.agents.workflow import agent_app
+from src.agents.state import AgentState
 
 def run_automated_agent_tests():
     if hasattr(sys.stdout, 'reconfigure'):
@@ -17,6 +21,7 @@ def run_automated_agent_tests():
     print("\n--- TEST 1: Specific Query Flow ---")
     query_1 = "casual blue shirts for men under 60"
     state_1: AgentState = {
+        "conversation_history": [],
         "original_query": query_1,
         "current_query": query_1,
         "filters": {},
@@ -51,6 +56,7 @@ def run_automated_agent_tests():
     print("--- TEST 2: Clarification Flow ---")
     vague_query = "I want sneakers"
     state_2: AgentState = {
+        "conversation_history": [],
         "original_query": vague_query,
         "current_query": vague_query,
         "filters": {},
@@ -104,6 +110,7 @@ def run_automated_agent_tests():
     }
 
     state_3: AgentState = {
+        "conversation_history": [],
         "original_query": "blue jeans",
         "current_query": "blue jeans",
         "filters": {"gender": "Men"},

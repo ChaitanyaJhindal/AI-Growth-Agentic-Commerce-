@@ -1,11 +1,9 @@
 import os
 from typing import Dict, Any, List, Optional
 from langchain_groq import ChatGroq
-from dotenv import load_dotenv
-
-import config
-from hybrid_search import ProductHybridSearchEngine
-from agent_state import (
+from src import config
+from src.search.engine import ProductHybridSearchEngine
+from src.agents.state import (
     AgentState,
     QueryAnalysis,
     ContextEvaluation,
@@ -13,19 +11,23 @@ from agent_state import (
     UpsellAnalysis
 )
 
-load_dotenv()
+# Lazy initialization of LLM
+_llm = None
 
-_groq_api_key = os.getenv("GROQ_API_KEY")
-if not _groq_api_key:
-    raise ValueError("GROQ_API_KEY environment variable is missing. Please set it in .env")
+def get_llm():
+    global _llm
+    if _llm is None:
+        groq_api_key = config.GROQ_API_KEY
+        if not groq_api_key:
+            raise ValueError("GROQ_API_KEY environment variable is missing. Please set it in your .env file.")
+        _llm = ChatGroq(
+            model=config.LLM_MODEL,
+            temperature=0.1,
+            api_key=groq_api_key
+        )
+    return _llm
 
-llm = ChatGroq(
-    model="openai/gpt-oss-120b",
-    temperature=0.1,
-    api_key=_groq_api_key
-)
-
-_search_engine = None
+_search_engine: Optional[ProductHybridSearchEngine] = None
 
 def get_search_engine() -> ProductHybridSearchEngine:
     global _search_engine
@@ -35,13 +37,13 @@ def get_search_engine() -> ProductHybridSearchEngine:
 
 
 # =====================================================================
-# 1. Query Agent (with Context-Aware Filter Management)
+# 1. Query Agent (Context-Aware Filter & Intent Parser)
 # =====================================================================
 
 def query_agent_node(state: AgentState) -> Dict[str, Any]:
     """
-    Parses user input using conversational history context.
-    Properly resets filters on new searches while preserving them on refinements.
+    Parses user input in context of conversation history.
+    Identifies new searches vs. filter refinements and extracts criteria.
     """
     user_query = state.get("current_query") or state.get("original_query", "")
     history = state.get("conversation_history", [])
@@ -79,10 +81,10 @@ Critical Instructions:
 3. If it is a new search, DO NOT carry over unrelated filters from the previous turn.
 4. Output a standalone cleaned search query.
 """
+    llm = get_llm()
     structured_llm = llm.with_structured_output(QueryAnalysis)
     analysis: QueryAnalysis = structured_llm.invoke(prompt)
 
-    # Build fresh filters for the current query
     engine = get_search_engine()
     new_filters = engine.build_filter(
         brand=analysis.brand,
@@ -95,14 +97,12 @@ Critical Instructions:
         in_stock=analysis.in_stock_only
     )
 
-    # Clean filter management: Only merge previous filters if user is refining
     if analysis.intent in ["filter_refinement", "refinement"] and prev_filters:
         merged_filters = prev_filters.copy()
         merged_filters.update(new_filters)
     else:
         merged_filters = new_filters
 
-    # Handle selected product if user picked an item
     selected_prod = state.get("selected_product")
     if analysis.selected_product_index and prev_results:
         idx = analysis.selected_product_index - 1
@@ -122,7 +122,7 @@ Critical Instructions:
 
 
 # =====================================================================
-# 2. Context Agent
+# 2. Context Agent (Evaluator & Clarification Generator)
 # =====================================================================
 
 def context_agent_node(state: AgentState) -> Dict[str, Any]:
@@ -164,6 +164,7 @@ Rules:
    - Generate exactly ONE concise follow-up question.
 3. If the user mentions a category (e.g. "watch", "shoes", "jeans"), it IS sufficient to perform an initial search unless completely meaningless.
 """
+    llm = get_llm()
     structured_llm = llm.with_structured_output(ContextEvaluation)
     eval_result: ContextEvaluation = structured_llm.invoke(prompt)
 
@@ -221,7 +222,7 @@ def search_node(state: AgentState) -> Dict[str, Any]:
 
 
 # =====================================================================
-# 4. Validation Agent
+# 4. Validation Agent (Quality Assurance & Retry Controller)
 # =====================================================================
 
 def validation_agent_node(state: AgentState) -> Dict[str, Any]:
@@ -275,6 +276,7 @@ Tasks:
 1. If products are relevant to the request, set validated = True.
 2. If completely unrelated, set validated = False and rewrite query.
 """
+    llm = get_llm()
     structured_llm = llm.with_structured_output(ValidationDecision)
     decision: ValidationDecision = structured_llm.invoke(prompt)
 
@@ -299,7 +301,7 @@ Tasks:
 
 
 # =====================================================================
-# 5. Upsell Agent
+# 5. Upsell Agent (AI Fashion Stylist Outfit Engine)
 # =====================================================================
 
 COMPLEMENTARY_MAP = {
@@ -371,6 +373,7 @@ Candidate Items:
 Task:
 Select the top 2-3 most harmonious complementary products and provide stylist reasoning.
 """
+    llm = get_llm()
     structured_llm = llm.with_structured_output(UpsellAnalysis)
     try:
         analysis: UpsellAnalysis = structured_llm.invoke(prompt)

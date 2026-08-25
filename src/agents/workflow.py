@@ -1,8 +1,8 @@
-from typing import Dict, Any, Literal
+from typing import Dict, Any, Literal, Optional
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
-from agent_state import AgentState
-from agents import (
+from src.agents.state import AgentState
+from src.agents.nodes import (
     query_agent_node,
     context_agent_node,
     search_node,
@@ -43,7 +43,8 @@ def route_after_validation(state: AgentState) -> Literal["upsell_agent", "search
 
 memory_checkpointer = MemorySaver()
 
-def create_ecommerce_agent_graph(checkpointer = memory_checkpointer):
+def create_ecommerce_agent_graph(checkpointer: Optional[Any] = memory_checkpointer):
+    """Assembles and compiles the multi-agent LangGraph workflow."""
     workflow = StateGraph(AgentState)
 
     # 1. Add Nodes

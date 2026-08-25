@@ -1,5 +1,10 @@
+import os
 import sys
-from agent_graph import agent_app
+
+# Ensure project root is in sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from src.agents.workflow import agent_app
 
 def run_multi_turn_test():
     if hasattr(sys.stdout, 'reconfigure'):

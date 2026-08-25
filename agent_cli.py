@@ -1,13 +1,7 @@
 import sys
-import os
 import uuid
 from tabulate import tabulate
-from dotenv import load_dotenv
-
-load_dotenv()
-
-from agent_graph import agent_app
-from agent_state import AgentState
+from src.agents.workflow import agent_app
 
 def display_product_table(products: list, title: str = "Search Results"):
     if not products:

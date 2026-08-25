@@ -1,12 +1,18 @@
+import os
+import sys
 import json
 import csv
 import argparse
 from tqdm import tqdm
 from pymongo import MongoClient, UpdateOne
 from pymongo.server_api import ServerApi
-import config
-from embedding_engine import get_embedding_engine
-from index_manager import setup_indexes
+
+# Ensure project root is in sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from src import config
+from src.search.embeddings import get_embedding_engine
+from src.search.indexing import setup_indexes
 
 def sanitize(row: dict) -> dict:
     """Cleans and casts catalog document types."""
@@ -32,6 +38,14 @@ def sanitize(row: dict) -> dict:
 
 def load_data(filepath: str, limit: int = None) -> list:
     """Loads records using Python standard library."""
+    if not os.path.exists(filepath):
+        # Fallback to check in data/ directory
+        alt_path = os.path.join(os.path.dirname(__file__), "..", "data", os.path.basename(filepath))
+        if os.path.exists(alt_path):
+            filepath = alt_path
+        else:
+            raise FileNotFoundError(f"Catalog file not found: {filepath}")
+
     if filepath.endswith(".json"):
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -47,7 +61,7 @@ def load_data(filepath: str, limit: int = None) -> list:
             return records
     raise ValueError("Supported formats: .json, .csv")
 
-def ingest(filepath: str = "products_catalog.json", batch_size: int = 256, limit: int = None):
+def ingest(filepath: str = "data/products_catalog.json", batch_size: int = 256, limit: int = None):
     print(f"Connecting to MongoDB Atlas...")
     client = MongoClient(config.MONGODB_URI, server_api=ServerApi('1'))
     collection = client[config.DB_NAME][config.COLLECTION_NAME]
@@ -76,7 +90,7 @@ def ingest(filepath: str = "products_catalog.json", batch_size: int = 256, limit
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ingest product catalog to MongoDB Atlas")
-    parser.add_argument("--file", default="products_catalog.json", help="Path to JSON or CSV file")
+    parser.add_argument("--file", default="data/products_catalog.json", help="Path to JSON or CSV file")
     parser.add_argument("--batch-size", type=int, default=256, help="Batch size")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of items")
     args = parser.parse_args()
