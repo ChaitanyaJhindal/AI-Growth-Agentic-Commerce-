@@ -860,9 +860,10 @@ async function openOutfitStudio(selectedProduct, preloadedUpsells = []) {
   activeEnsembleProducts = [selectedProduct];
 
   // Render Anchor item on Left
+  const safeImg = getSafeImageUrl(selectedProduct.image_url);
   anchorItemPanel.innerHTML = `
     <div class="anchor-badge">Anchor Piece</div>
-    <img src="${getSafeImageUrl(selectedProduct.image_url)}" class="anchor-img" alt="${selectedProduct.name}"/>
+    <img src="${safeImg}" class="anchor-img" alt="${selectedProduct.name}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGES[0]}'"/>
     <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-secondary); margin-top: 0.75rem;">${selectedProduct.brand || 'Studio'}</div>
     <div class="anchor-name">${selectedProduct.name}</div>
     <div class="anchor-price">$${selectedProduct.price ? selectedProduct.price.toFixed(2) : '55.00'}</div>
@@ -913,7 +914,7 @@ function renderEnsembleItems(selectedProduct, pairings) {
       const pieceCard = document.createElement("div");
       pieceCard.className = "ensemble-piece-card";
       pieceCard.innerHTML = `
-        <img src="${getSafeImageUrl(item.image_url, idx + 1)}" class="ensemble-piece-img" alt="${item.name}"/>
+        <img src="${getSafeImageUrl(item.image_url, idx + 1)}" class="ensemble-piece-img" alt="${item.name}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGES[(idx + 1) % FALLBACK_IMAGES.length]}'"/>
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary);">${item.article_type || 'Complementary'}</div>
         <div class="ensemble-piece-name">${item.name}</div>
         <div class="ensemble-piece-price">$${item.price ? item.price.toFixed(2) : '35.00'}</div>
