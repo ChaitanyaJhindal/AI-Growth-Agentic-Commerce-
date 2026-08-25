@@ -280,61 +280,88 @@
     </div>
   </div>
 
-  <!-- AUTH MODAL (Sign In & Sign Up) -->
+  <!-- AUTH MODAL (Sign In & Sign Up - Stitch Aurelian Noir Design) -->
   <div class="modal-overlay" id="auth-modal" style="display: none;">
-    <div class="auth-modal-content">
-      <button class="modal-close-btn" id="auth-close-btn">&times;</button>
-      <div class="auth-header">
-        <span class="kicker">MEMBER ACCESS</span>
-        <h2 class="auth-title" id="auth-modal-title">Welcome to AURA</h2>
-        <p class="auth-subtitle">Access your personalized AI style profile, saved capsule, and express checkout.</p>
+    <div class="auth-modal-dialog">
+      <!-- Left Visual Panel -->
+      <div class="auth-visual-panel">
+        <div class="auth-visual-content">
+          <div class="auth-brand-badge">AURA PRIVATE CIRCLE</div>
+          <h3 class="auth-visual-headline">Elevate Your Signature Silhouette</h3>
+          <p class="auth-visual-desc">An intimate dialogue between personal aesthetic intelligence and bespoke curation.</p>
+          
+          <div class="auth-perks-list">
+            <div class="perk-item">
+              <span class="perk-icon">✦</span>
+              <span>Personalized AI Capsule Wardrobes</span>
+            </div>
+            <div class="perk-item">
+              <span class="perk-icon">✦</span>
+              <span>Bespoke Styling & Ensemble Matching</span>
+            </div>
+            <div class="perk-item">
+              <span class="perk-icon">✦</span>
+              <span>Complimentary Carbon-Neutral Express</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Auth Tabs -->
-      <div class="auth-tabs">
-        <button class="auth-tab active" id="tab-login-btn">Sign In</button>
-        <button class="auth-tab" id="tab-signup-btn">Create Account</button>
+      <!-- Right Form Panel -->
+      <div class="auth-form-panel">
+        <button class="modal-close-btn" id="auth-close-btn">&times;</button>
+        <div class="auth-header">
+          <span class="kicker">MEMBER PRIVILEGE</span>
+          <h2 class="auth-title" id="auth-modal-title">Welcome to AURA</h2>
+          <p class="auth-subtitle">Access your saved capsule, style preferences, and express checkout.</p>
+        </div>
+
+        <!-- Auth Tabs -->
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tab-login-btn">Sign In</button>
+          <button class="auth-tab" id="tab-signup-btn">Create Account</button>
+        </div>
+
+        <!-- Sign In Form -->
+        <form class="auth-form" id="login-form">
+          <div class="form-group">
+            <label for="login-email">Email Address</label>
+            <input type="email" id="login-email" required placeholder="your.name@example.com" autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password" />
+          </div>
+          <div class="auth-error" id="login-error" style="display: none;"></div>
+          <button type="submit" class="btn-primary btn-block" id="login-submit-btn">Sign In &rarr;</button>
+        </form>
+
+        <!-- Sign Up Form -->
+        <form class="auth-form" id="signup-form" style="display: none;">
+          <div class="form-group">
+            <label for="signup-name">Full Name</label>
+            <input type="text" id="signup-name" required placeholder="Chaitanya" autocomplete="name" />
+          </div>
+          <div class="form-group">
+            <label for="signup-email">Email Address</label>
+            <input type="email" id="signup-email" required placeholder="your.name@example.com" autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <label for="signup-password">Password (min 6 characters)</label>
+            <input type="password" id="signup-password" required placeholder="••••••••" autocomplete="new-password" minlength="6" />
+          </div>
+          <div class="auth-error" id="signup-error" style="display: none;"></div>
+          <button type="submit" class="btn-primary btn-block" id="signup-submit-btn">Join The Circle &rarr;</button>
+        </form>
+
+        <!-- Guest Skip Option -->
+        <div class="auth-guest-divider">
+          <span>or continue without profile</span>
+        </div>
+        <button type="button" class="btn-guest-skip" id="auth-skip-btn">
+          Explore as Guest (Skip for now) &rarr;
+        </button>
       </div>
-
-      <!-- Sign In Form -->
-      <form class="auth-form" id="login-form">
-        <div class="form-group">
-          <label for="login-email">Email Address</label>
-          <input type="email" id="login-email" required placeholder="your.name@example.com" autocomplete="email" />
-        </div>
-        <div class="form-group">
-          <label for="login-password">Password</label>
-          <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password" />
-        </div>
-        <div class="auth-error" id="login-error" style="display: none;"></div>
-        <button type="submit" class="btn-primary btn-block" id="login-submit-btn">Sign In</button>
-      </form>
-
-      <!-- Sign Up Form -->
-      <form class="auth-form" id="signup-form" style="display: none;">
-        <div class="form-group">
-          <label for="signup-name">Full Name</label>
-          <input type="text" id="signup-name" required placeholder="Chaitanya" autocomplete="name" />
-        </div>
-        <div class="form-group">
-          <label for="signup-email">Email Address</label>
-          <input type="email" id="signup-email" required placeholder="your.name@example.com" autocomplete="email" />
-        </div>
-        <div class="form-group">
-          <label for="signup-password">Password (min 6 characters)</label>
-          <input type="password" id="signup-password" required placeholder="••••••••" autocomplete="new-password" minlength="6" />
-        </div>
-        <div class="auth-error" id="signup-error" style="display: none;"></div>
-        <button type="submit" class="btn-primary btn-block" id="signup-submit-btn">Create Account</button>
-      </form>
-
-      <!-- Guest Skip Option -->
-      <div class="auth-guest-divider">
-        <span>or</span>
-      </div>
-      <button type="button" class="btn-guest-skip" id="auth-skip-btn">
-        Explore as Guest (Skip for now) &rarr;
-      </button>
     </div>
   </div>
 
