@@ -396,6 +396,81 @@ async def get_combo_suggestion(req: ComboSuggestionRequest):
 
 
 # =====================================================================
+# AI Campaign & Re-Engagement Agent Endpoints (openai/gpt-oss-20b)
+# =====================================================================
+
+class CampaignMessageRequest(BaseModel):
+    customer_name: str = Field(..., description="Name of the customer (e.g. Rahul, Priya)")
+    bag_items: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Items in user cart/bag")
+    channel: Optional[str] = Field("whatsapp", description="Target channel: whatsapp, push, sms, or email")
+    discount_code: Optional[str] = Field("AURA15", description="Promotional voucher code")
+    tone: Optional[str] = Field("witty_hinglish", description="Tone: witty_hinglish, playful_urgency, or luxury_chic")
+
+class CampaignVariationsRequest(BaseModel):
+    customer_name: str = Field(..., description="Name of the customer")
+    bag_items: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Items in cart/bag")
+    count: Optional[int] = Field(3, description="Number of variations")
+    discount_code: Optional[str] = Field("AURA15", description="Voucher code")
+
+@app.post("/api/campaign/generate")
+async def generate_campaign_message(req: CampaignMessageRequest):
+    """
+    Generates a high-converting, personalized promotional message for WhatsApp/Push
+    based on the customer's name and cart items using openai/gpt-oss-20b.
+    """
+    from src.agents.campaign_agent import get_campaign_agent
+    agent = get_campaign_agent()
+    result = agent.generate_message(
+        customer_name=req.customer_name,
+        bag_items=req.bag_items or [],
+        channel=req.channel or "whatsapp",
+        discount_code=req.discount_code or "AURA15",
+        tone=req.tone or "witty_hinglish"
+    )
+    return result
+
+@app.post("/api/campaign/variations")
+async def generate_campaign_variations(req: CampaignVariationsRequest):
+    """
+    Generates multiple creative variations of campaign copy for A/B testing.
+    """
+    from src.agents.campaign_agent import get_campaign_agent
+    agent = get_campaign_agent()
+    variations = agent.generate_campaign_variations(
+        customer_name=req.customer_name,
+        bag_items=req.bag_items or [],
+        count=req.count or 3,
+        discount_code=req.discount_code or "AURA15"
+    )
+    return {
+        "success": True,
+        "customer_name": req.customer_name,
+        "variations": variations,
+        "count": len(variations)
+    }
+
+@app.get("/api/campaign/sample")
+async def get_sample_campaign(name: Optional[str] = "Rahul"):
+    """
+    Sample preview endpoint demonstrating personalized Hinglish WhatsApp promotional copy.
+    """
+    from src.agents.campaign_agent import get_campaign_agent
+    agent = get_campaign_agent()
+    sample_bag = [
+        {"name": "Puma Nitro Carbon Running Shoes", "article_type": "Sports Shoes", "price": 85.0},
+        {"name": "Nike Tech Fleece Black Track Pants", "article_type": "Track Pants", "price": 55.0}
+    ]
+    result = agent.generate_message(
+        customer_name=name or "Rahul",
+        bag_items=sample_bag,
+        channel="whatsapp",
+        discount_code="AURA20",
+        tone="witty_hinglish"
+    )
+    return result
+
+
+# =====================================================================
 # AI Agent & Search Endpoints
 # =====================================================================
 

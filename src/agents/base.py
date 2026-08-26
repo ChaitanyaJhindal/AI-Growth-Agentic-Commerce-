@@ -10,6 +10,7 @@ AGENT_KEY_MAP = {
     "context": config.GROQ_API_KEY_CONTEXT,
     "validation": config.GROQ_API_KEY_VALIDATION,
     "upsell": config.GROQ_API_KEY_UPSELL,
+    "campaign": config.GROQ_API_KEY_CAMPAIGN,
     "default": config.GROQ_API_KEY_QUERY
 }
 

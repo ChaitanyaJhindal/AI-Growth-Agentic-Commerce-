@@ -9,9 +9,10 @@ A multi-agent luxury e-commerce concierge powered by **LangGraph**, **Groq Distr
 
 ## 🚀 Key Highlights & Agentic UX Innovations
 
-* **⚡ Ultra-Low Latency Multi-Agent Architecture**: Built on LangGraph StateGraph with distributed Groq API keys routing specialized tasks to Query, Context, Validation, Upsell, and Placeholder Agents.
+* **⚡ Ultra-Low Latency Multi-Agent Architecture**: Built on LangGraph StateGraph with distributed Groq API keys routing specialized tasks to Query, Context, Validation, Upsell, Placeholder, and Campaign Agents.
 * **🧠 Voyage AI Remote Inference (`voyage-3-lite`)**: Zero-RAM remote embedding inference with 512-dimensional normalized vectors and automatic rate-limit retry.
-* **✨ Gen-Z Streaming Placeholder Agent (`openai/gpt-oss-20b`)**: Dynamic character-by-character typewriter search bar placeholder refreshed every 10 seconds.
+* **📢 AI Campaign & Re-Engagement Agent (`openai/gpt-oss-20b`)**: Crafts hyper-personalized, witty, culturally-resonant (Hinglish/English) promotional messages for WhatsApp, Push, and SMS based on items in consumer carts.
+* **✨ Dynamic Streaming Placeholder Agent (`openai/gpt-oss-20b`)**: Dynamic character-by-character typewriter search bar placeholder refreshed every 10 seconds with catalog-grounded queries.
 * **🪄 Magic Outfit Combo Stylist & Capsule Preview**: Synthesizes bespoke styling rationale based on your selected anchor piece and recommended upsell pieces, revealed with a silky blurry-to-sharp animation.
 * **📊 Progressive Revelation Pipeline Banner**: Sequential line-by-line streaming of agent thoughts during query processing.
 * **🔐 Full Authentication & Patron Wardrobe**: User registration, session persistence, saved wardrobes, and cart syncing directly to MongoDB Atlas.

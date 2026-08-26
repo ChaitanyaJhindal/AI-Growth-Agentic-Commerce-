@@ -16,6 +16,8 @@ services:
         sync: false
       - key: GROQ_API_KEY_VALIDATION
         sync: false
+      - key: GROQ_API_KEY_CAMPAIGN
+        sync: false
       - key: VOYAGE_API_KEY
         sync: false
       - key: MONGODB_PASSWORD
