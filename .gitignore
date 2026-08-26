@@ -2,10 +2,19 @@
 .env
 *.env
 
+# Node.js & Baileys
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+data/baileys_auth/
+baileys_auth_info/
+
 # Python cache
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 
 # IDE & OS
 .vscode/

@@ -658,6 +658,148 @@ async def get_product_details(product_id: str):
 
 
 # =====================================================================
+# WhatsApp Messaging Service & Queue Endpoints (OpenWA / Baileys)
+# =====================================================================
+
+class WhatsAppQueueRequest(BaseModel):
+    recipient_phone: str = Field(..., description="Recipient phone in E.164 format (e.g. +919876543210)")
+    message: str = Field(..., description="WhatsApp message text body")
+    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Optional custom metadata")
+
+class WhatsAppCampaignQueueRequest(BaseModel):
+    customer_name: str = Field(..., description="Name of the customer (e.g. Rahul, Priya)")
+    recipient_phone: str = Field(..., description="Recipient phone in E.164 format (e.g. +919876543210)")
+    bag_items: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Items currently in customer bag")
+    discount_code: Optional[str] = Field("AURA20", description="Promotional voucher code")
+    tone: Optional[str] = Field("witty_hinglish", description="Copywriting tone")
+
+@app.on_event("startup")
+async def start_whatsapp_background_worker():
+    """Starts the sequential WhatsApp message queue worker on FastAPI boot."""
+    try:
+        from src.whatsapp import get_whatsapp_worker
+        worker = get_whatsapp_worker()
+        worker.start_background()
+        print("✓ WhatsApp Queue Worker initialized in background.")
+    except Exception as e:
+        print(f"Notice on WhatsApp Worker startup: {e}")
+
+@app.post("/whatsapp/queue")
+@app.post("/api/whatsapp/queue")
+async def queue_whatsapp_message(req: WhatsAppQueueRequest):
+    """
+    Validates recipient phone (E.164) and message body, and enqueues to MongoDB whatsapp_messages collection.
+    Does NOT send message directly.
+    """
+    try:
+        from src.whatsapp import get_whatsapp_queue
+        queue = get_whatsapp_queue()
+        result = queue.enqueue(
+            recipient_phone=req.recipient_phone,
+            message=req.message,
+            metadata=req.metadata
+        )
+        return result
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to enqueue WhatsApp message: {e}")
+
+@app.get("/whatsapp/queue/{message_id}")
+@app.get("/api/whatsapp/queue/{message_id}")
+async def get_whatsapp_queue_status(message_id: str):
+    """
+    Checks status and retry attempts of a queued WhatsApp message.
+    """
+    from src.whatsapp import get_whatsapp_queue
+    queue = get_whatsapp_queue()
+    doc = queue.get_message(message_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="WhatsApp message not found in queue.")
+    return {"success": True, "message": doc}
+
+@app.get("/whatsapp/status")
+@app.get("/api/whatsapp/status")
+async def get_whatsapp_service_status():
+    """
+    Returns real-time queue statistics and Baileys engine connection status.
+    """
+    from src.whatsapp import get_whatsapp_queue, get_baileys_client
+    queue = get_whatsapp_queue()
+    client = get_baileys_client()
+    stats = queue.get_stats()
+    engine_status = client.get_status()
+    return {
+        "success": True,
+        "queue": stats,
+        "engine": engine_status
+    }
+
+@app.get("/whatsapp/qr")
+@app.get("/api/whatsapp/qr")
+async def get_whatsapp_qr_code():
+    """
+    Returns the QR code string for initial WhatsApp authentication if not yet linked.
+    """
+    from src.whatsapp import get_baileys_client
+    client = get_baileys_client()
+    return client.get_qr()
+
+@app.post("/whatsapp/campaign/queue")
+@app.post("/api/whatsapp/campaign/queue")
+async def generate_and_queue_campaign(req: WhatsAppCampaignQueueRequest):
+    """
+    Integrates Campaign Agent with WhatsApp Queue:
+    1. Generates hyper-personalized, witty Hinglish promotional copy using CampaignAgent (openai/gpt-oss-20b).
+    2. Automatically enqueues the crafted message into MongoDB whatsapp_messages queue.
+    """
+    try:
+        from src.agents.campaign_agent import get_campaign_agent
+        from src.whatsapp import get_whatsapp_queue
+
+        # 1. Generate personalized promotional copy
+        agent = get_campaign_agent()
+        campaign_res = agent.generate_message(
+            customer_name=req.customer_name,
+            bag_items=req.bag_items or [],
+            channel="whatsapp",
+            discount_code=req.discount_code or "AURA20",
+            tone=req.tone or "witty_hinglish"
+        )
+        message_text = campaign_res.get("message", "")
+        if not message_text:
+            raise RuntimeError("Campaign agent failed to produce copy.")
+
+        # 2. Enqueue to MongoDB queue
+        queue = get_whatsapp_queue()
+        queue_res = queue.enqueue(
+            recipient_phone=req.recipient_phone,
+            message=message_text,
+            metadata={
+                "customer_name": req.customer_name,
+                "campaign_headline": campaign_res.get("headline"),
+                "discount_code": req.discount_code,
+                "model": campaign_res.get("model", agent.model),
+                "source": "campaign_agent"
+            }
+        )
+
+        return {
+            "success": True,
+            "message_id": queue_res.get("message_id"),
+            "status": queue_res.get("status"),
+            "recipient_phone": queue_res.get("recipient_phone"),
+            "generated_headline": campaign_res.get("headline"),
+            "generated_message": message_text,
+            "call_to_action": campaign_res.get("call_to_action")
+        }
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Campaign queue error: {e}")
+
+
+# =====================================================================
 # Mount Static Frontend
 # =====================================================================
 

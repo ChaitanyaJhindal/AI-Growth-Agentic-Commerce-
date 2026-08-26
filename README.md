@@ -151,7 +151,50 @@ python tests/test_auth.py
 
 # Test 5: Health Check & Keep-Alive Uptime Routes
 python tests/test_health.py
+
+# Test 6: WhatsApp Message Queue & Baileys Worker
+python tests/test_whatsapp_service.py
 ```
+
+---
+
+## 📱 Lightweight WhatsApp Messaging Service (OpenWA / Baileys Engine)
+
+An asynchronous, MongoDB-backed persistent queue and worker for delivering personalized campaign messages without high memory consumption.
+
+```
+Campaign Agent (openai/gpt-oss-20b)
+    │
+    ▼
+POST /whatsapp/queue (Validates E.164 phone & enqueues)
+    │
+    ▼
+MongoDB `whatsapp_messages` collection (status: 'pending')
+    │
+    ▼
+Lightweight Sequential Worker (Atomic claim, rate-limit spacing)
+    │
+    ▼
+Baileys WhatsApp Engine (Zero Chromium, <35MB RAM)
+    │
+    ▼
+WhatsApp Recipient (+9198****3210)
+```
+
+### 📋 Status State Machine:
+* `pending` ➔ `processing` (atomically claimed with lock timeout)
+* `processing` ➔ `sent` (delivery confirmed)
+* `processing` ➔ `pending` (transient failure, increment attempts)
+* `processing` ➔ `failed` (exceeded `max_attempts = 3`)
+
+### 🔑 Key Endpoints:
+* `POST /whatsapp/queue`: Enqueue a message with recipient phone in E.164 format.
+* `GET /whatsapp/queue/{id}`: Inspect delivery status and retry attempts.
+* `GET /whatsapp/status`: Real-time queue metrics and Baileys connection state.
+* `POST /whatsapp/campaign/queue`: One-click campaign synthesis & automated queue dispatch.
+
+### 💾 Session Persistence on Render Free:
+WhatsApp credentials and keys are automatically synchronized with the MongoDB `whatsapp_sessions` collection, guaranteeing persistent authentication across ephemeral Render container restarts without requiring QR re-scanning.
 
 ---
 

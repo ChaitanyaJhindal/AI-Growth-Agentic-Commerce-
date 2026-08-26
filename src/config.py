@@ -51,3 +51,14 @@ SEARCH_TEXT_FIELDS = [
 # Razorpay Configuration
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+
+# WhatsApp Queue & Baileys Configuration
+WHATSAPP_QUEUE_COLLECTION = os.getenv("WHATSAPP_QUEUE_COLLECTION", "whatsapp_messages")
+WHATSAPP_SESSION_COLLECTION = os.getenv("WHATSAPP_SESSION_COLLECTION", "whatsapp_sessions")
+WHATSAPP_MAX_ATTEMPTS = int(os.getenv("WHATSAPP_MAX_ATTEMPTS", "3"))
+WHATSAPP_POLL_INTERVAL = float(os.getenv("WHATSAPP_POLL_INTERVAL", "5.0"))
+WHATSAPP_RATE_LIMIT_DELAY = float(os.getenv("WHATSAPP_RATE_LIMIT_DELAY", "3.0"))
+WHATSAPP_API_KEY = os.getenv("WHATSAPP_API_KEY", "")
+WHATSAPP_BAILEYS_URL = os.getenv("WHATSAPP_BAILEYS_URL", "http://127.0.0.1:5001")
+WHATSAPP_DRY_RUN = os.getenv("WHATSAPP_DRY_RUN", "false").lower() in ("true", "1", "yes")
+WHATSAPP_SESSION_DIR = os.getenv("WHATSAPP_SESSION_DIR", "data/baileys_auth")
