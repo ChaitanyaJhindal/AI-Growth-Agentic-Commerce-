@@ -675,7 +675,20 @@ class WhatsAppCampaignQueueRequest(BaseModel):
 
 @app.on_event("startup")
 async def start_whatsapp_background_worker():
-    """Starts the sequential WhatsApp message queue worker on FastAPI boot."""
+    """Starts the sequential WhatsApp message queue worker and Baileys daemon on boot."""
+    import subprocess
+    import shutil
+
+    # 1. Spawn Baileys Node Engine if Node is available
+    try:
+        baileys_script = os.path.join(os.path.dirname(__file__), "src", "whatsapp", "baileys_service.js")
+        if shutil.which("node") and os.path.exists(baileys_script):
+            subprocess.Popen(["node", baileys_script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print("✓ WhatsApp Baileys Engine daemon spawned in background.")
+    except Exception as e:
+        print(f"Notice on Baileys Node daemon spawn: {e}")
+
+    # 2. Start Python MongoDB Queue Worker
     try:
         from src.whatsapp import get_whatsapp_worker
         worker = get_whatsapp_worker()
@@ -683,6 +696,15 @@ async def start_whatsapp_background_worker():
         print("✓ WhatsApp Queue Worker initialized in background.")
     except Exception as e:
         print(f"Notice on WhatsApp Worker startup: {e}")
+
+@app.get("/whatsapp")
+@app.get("/whatsapp-link")
+async def serve_whatsapp_page():
+    """Serves the visual WhatsApp QR code linking and campaign dashboard."""
+    whatsapp_html = os.path.join(static_dir, "whatsapp.html")
+    if os.path.exists(whatsapp_html):
+        return FileResponse(whatsapp_html)
+    raise HTTPException(status_code=404, detail="WhatsApp management interface not found.")
 
 @app.post("/whatsapp/queue")
 @app.post("/api/whatsapp/queue")

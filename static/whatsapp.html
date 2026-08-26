@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AURA — WhatsApp Linking & Campaign Gateway</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      --bg-dark: #0a0a0c;
+      --bg-card: #131318;
+      --bg-card-hover: #1a1a22;
+      --border-subtle: rgba(197, 160, 89, 0.18);
+      --border-glow: rgba(197, 160, 89, 0.45);
+      --accent-gold: #c5a059;
+      --accent-gold-light: #e5c378;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --font-heading: 'Playfair Display', Georgia, serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2.5rem 1.5rem;
+    }
+
+    .container {
+      max-width: 880px;
+      width: 100%;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      font-weight: 700;
+      color: var(--accent-gold);
+      padding: 0.35rem 0.85rem;
+      background: rgba(197, 160, 89, 0.1);
+      border: 1px solid var(--border-subtle);
+      border-radius: 999px;
+      margin-bottom: 1rem;
+    }
+
+    .header h1 {
+      font-family: var(--font-heading);
+      font-size: 2.4rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ffffff 40%, var(--accent-gold-light) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.75rem;
+    }
+
+    @media (max-width: 768px) {
+      .grid-layout { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 1.75rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--accent-amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .status-pill.connected {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+      border-color: rgba(16, 185, 129, 0.35);
+    }
+
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: currentColor;
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    /* QR Box */
+    .qr-container {
+      background: #ffffff;
+      padding: 1.25rem;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 240px;
+      margin: 0 auto 1.25rem auto;
+      width: 240px;
+      height: 240px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    .qr-container canvas, .qr-container img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .instructions-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .instructions-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+    }
+
+    .step-num {
+      width: 20px;
+      height: 20px;
+      background: rgba(197, 160, 89, 0.15);
+      color: var(--accent-gold);
+      border-radius: 50%;
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* Form inputs */
+    .form-group {
+      margin-bottom: 1.1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .form-input, .form-textarea {
+      width: 100%;
+      padding: 0.75rem 0.9rem;
+      background: #0d0d11;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      color: #fff;
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    .form-input:focus, .form-textarea:focus {
+      outline: none;
+      border-color: var(--accent-gold);
+      box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.15);
+    }
+
+    .btn-gold {
+      width: 100%;
+      padding: 0.85rem;
+      background: linear-gradient(135deg, var(--accent-gold) 0%, #a8823b 100%);
+      color: #0a0a0c;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+      margin-top: 0.5rem;
+    }
+
+    .btn-gold:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(197, 160, 89, 0.3);
+    }
+
+    /* Metrics bar */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+
+    .metric-box {
+      background: #0d0d11;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 0.75rem;
+      text-align: center;
+    }
+
+    .metric-val {
+      font-size: 1.25rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--accent-gold);
+    }
+
+    .metric-lbl {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    .log-box {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: #08080a;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: #34d399;
+      max-height: 120px;
+      overflow-y: auto;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo-badge">
+        <span>✨</span> AURA CONCIERGE WHATSAPP GATEWAY
+      </div>
+      <h1>Scan & Link WhatsApp</h1>
+      <p>Scan the QR code once to link your WhatsApp number. Your session persists permanently across restarts.</p>
+    </div>
+
+    <div class="grid-layout">
+      <!-- Left: QR Code & Connection Status -->
+      <div class="card">
+        <div class="card-title">
+          <span>Device Connection</span>
+          <span class="status-pill" id="status-pill">
+            <span class="pulse-dot"></span>
+            <span id="status-text">Checking Status</span>
+          </span>
+        </div>
+
+        <div class="qr-container" id="qr-box">
+          <div id="qrcode-target" style="display: flex; align-items: center; justify-content: center;"></div>
+          <div id="qr-placeholder" style="color: #666; font-size: 0.85rem; text-align: center;">
+            ✦ Initializing Baileys Socket...
+          </div>
+        </div>
+
+        <ul class="instructions-list">
+          <li>
+            <span class="step-num">1</span>
+            <span>Open <strong>WhatsApp</strong> on your mobile phone.</span>
+          </li>
+          <li>
+            <span class="step-num">2</span>
+            <span>Tap <strong>Linked Devices</strong> (or <strong>Settings &gt; Linked Devices</strong>).</span>
+          </li>
+          <li>
+            <span class="step-num">3</span>
+            <span>Tap <strong>Link a Device</strong> and point your camera at the QR code above.</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Right: Live Test Message Sender & Metrics -->
+      <div class="card">
+        <div class="card-title">
+          <span>Test WhatsApp Campaign</span>
+          <span style="font-size: 0.75rem; color: var(--accent-gold);">⚡ openai/gpt-oss-20b</span>
+        </div>
+
+        <form id="test-form" onsubmit="event.preventDefault(); sendTestCampaign();">
+          <div class="form-group">
+            <label class="form-label">Customer Name</label>
+            <input type="text" id="cust-name" class="form-input" value="Rahul" required placeholder="e.g. Rahul Sharma" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Recipient Phone (with country code)</label>
+            <input type="tel" id="cust-phone" class="form-input" value="+919876543210" required placeholder="+919876543210" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Voucher / Discount Code</label>
+            <input type="text" id="cust-code" class="form-input" value="AURA25" placeholder="AURA25" />
+          </div>
+
+          <button type="submit" class="btn-gold" id="send-btn">
+            <span>🚀</span> Generate & Queue Campaign Message
+          </button>
+        </form>
+
+        <div class="log-box" id="log-box"></div>
+
+        <div class="metrics-grid">
+          <div class="metric-box">
+            <div class="metric-val" id="metric-pending">0</div>
+            <div class="metric-lbl">Pending</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-val" id="metric-processing">0</div>
+            <div class="metric-lbl">Active</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-val" id="metric-sent">0</div>
+            <div class="metric-lbl">Sent</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-val" id="metric-failed">0</div>
+            <div class="metric-lbl">Failed</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let qrcodeObj = null;
+    let lastQrString = null;
+
+    async function pollStatusAndQR() {
+      try {
+        const res = await fetch('/whatsapp/status');
+        if (res.ok) {
+          const data = await res.json();
+          const queue = data.queue || {};
+          const engine = data.engine || {};
+
+          document.getElementById('metric-pending').textContent = queue.pending || 0;
+          document.getElementById('metric-processing').textContent = queue.processing || 0;
+          document.getElementById('metric-sent').textContent = queue.sent || 0;
+          document.getElementById('metric-failed').textContent = queue.failed || 0;
+
+          const pill = document.getElementById('status-pill');
+          const pillText = document.getElementById('status-text');
+
+          if (engine.connected || engine.authenticated) {
+            pill.className = 'status-pill connected';
+            pillText.textContent = `Connected (${engine.phone || 'Active'})`;
+            document.getElementById('qrcode-target').style.display = 'none';
+            document.getElementById('qr-placeholder').style.display = 'block';
+            document.getElementById('qr-placeholder').innerHTML = '✅ <strong>WhatsApp Linked</strong><br><span style="font-size:0.75rem; color:#10b981;">Ready to send campaign messages</span>';
+            return;
+          } else {
+            pill.className = 'status-pill';
+            pillText.textContent = 'Scan QR To Link';
+          }
+        }
+
+        // Fetch QR code
+        const qrRes = await fetch('/whatsapp/qr');
+        if (qrRes.ok) {
+          const qrData = await qrRes.json();
+          if (qrData.qr && qrData.qr !== lastQrString) {
+            lastQrString = qrData.qr;
+            document.getElementById('qr-placeholder').style.display = 'none';
+            document.getElementById('qrcode-target').style.display = 'block';
+            document.getElementById('qrcode-target').innerHTML = '';
+            qrcodeObj = new QRCode(document.getElementById('qrcode-target'), {
+              text: qrData.qr,
+              width: 200,
+              height: 200,
+              colorDark: '#000000',
+              colorLight: '#ffffff',
+              correctLevel: QRCode.CorrectLevel.M
+            });
+          }
+        }
+      } catch (err) {
+        console.log('Status polling...', err);
+      }
+    }
+
+    async function sendTestCampaign() {
+      const btn = document.getElementById('send-btn');
+      const logBox = document.getElementById('log-box');
+      const name = document.getElementById('cust-name').value.trim();
+      const phone = document.getElementById('cust-phone').value.trim();
+      const code = document.getElementById('cust-code').value.trim();
+
+      btn.disabled = true;
+      btn.innerHTML = '✦ Synthesizing AI Message...';
+      logBox.style.display = 'block';
+      logBox.textContent = `[Agent] Generating tailored Hinglish copy for ${name}...`;
+
+      try {
+        const res = await fetch('/whatsapp/campaign/queue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customer_name: name,
+            recipient_phone: phone,
+            bag_items: [
+              { name: 'Puma Nitro Carbon Running Shoes', article_type: 'Sports Shoes', price: 85.0 },
+              { name: 'Nike Tech Fleece Black Track Pants', article_type: 'Track Pants', price: 55.0 }
+            ],
+            discount_code: code || 'AURA20',
+            tone: 'witty_hinglish'
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          logBox.textContent = `✓ Enqueued Message ID: ${data.message_id}\n\nGenerated Copy:\n"${data.generated_message}"\n\nStatus: ${data.status} (Worker will dispatch shortly)`;
+        } else {
+          logBox.textContent = `✗ Error: ${data.detail || data.error || 'Failed to enqueue'}`;
+        }
+      } catch (err) {
+        logBox.textContent = `✗ Network Error: ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>🚀</span> Generate & Queue Campaign Message';
+        pollStatusAndQR();
+      }
+    }
+
+    // Initial poll and recurring heartbeat
+    pollStatusAndQR();
+    setInterval(pollStatusAndQR, 4000);
+  </script>
+</body>
+</html>
