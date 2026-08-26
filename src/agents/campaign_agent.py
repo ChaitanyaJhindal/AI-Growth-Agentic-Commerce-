@@ -102,28 +102,39 @@ Generate an innovative, high-engagement promotional message for this customer no
             with urllib.request.urlopen(req, timeout=4.5) as res:
                 res_data = json.loads(res.read().decode("utf-8"))
                 raw_text = res_data["choices"][0]["message"]["content"].strip()
-                if "{" in raw_text and "}" in raw_text:
-                    start = raw_text.index("{")
-                    end = raw_text.rindex("}") + 1
-                    parsed = json.loads(raw_text[start:end])
-                    return {
-                        "success": True,
-                        "customer_name": customer_name,
-                        "channel": channel,
-                        "headline": parsed.get("headline", fallback_headline),
-                        "message": parsed.get("body", fallback_body),
-                        "call_to_action": parsed.get("call_to_action", "Claim My Look ✨"),
-                        "suggested_emoji": parsed.get("suggested_emoji", "✨🔥"),
-                        "model": self.model,
-                        "items_referenced": item_names
-                    }
-                elif raw_text:
+                # Clean markdown wrapper if present
+                clean_text = raw_text.strip()
+                if "```json" in clean_text:
+                    clean_text = clean_text.split("```json")[1].split("```")[0].strip()
+                elif "```" in clean_text:
+                    clean_text = clean_text.split("```")[1].split("```")[0].strip()
+
+                if "{" in clean_text and "}" in clean_text:
+                    start = clean_text.index("{")
+                    end = clean_text.rindex("}") + 1
+                    try:
+                        parsed = json.loads(clean_text[start:end])
+                        return {
+                            "success": True,
+                            "customer_name": customer_name,
+                            "channel": channel,
+                            "headline": parsed.get("headline", fallback_headline),
+                            "message": parsed.get("body", fallback_body),
+                            "call_to_action": parsed.get("call_to_action", "Claim My Look ✨"),
+                            "suggested_emoji": parsed.get("suggested_emoji", "✨🔥"),
+                            "model": self.model,
+                            "items_referenced": item_names
+                        }
+                    except Exception:
+                        pass
+                
+                if raw_text:
                     return {
                         "success": True,
                         "customer_name": customer_name,
                         "channel": channel,
                         "headline": fallback_headline,
-                        "message": raw_text,
+                        "message": raw_text.replace("```json", "").replace("```", "").strip(),
                         "call_to_action": "Complete Order Now 🔥",
                         "suggested_emoji": "✨🔥",
                         "model": self.model,
