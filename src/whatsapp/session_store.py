@@ -20,11 +20,21 @@ class MongoWhatsAppSessionStore:
         if db is not None:
             self.db = db
         else:
-            connection_uri = config.MONGODB_URI
-            if not connection_uri:
-                raise ValueError("MONGODB_URI is required for session store.")
-            self.client = MongoClient(connection_uri, server_api=ServerApi('1'))
-            self.db = self.client[config.DB_NAME]
+            try:
+                from src.agents.base import get_search_engine
+                engine = get_search_engine()
+                self.db = engine.collection.database
+            except Exception:
+                connection_uri = config.MONGODB_URI or os.getenv("MONGODB_URI")
+                if not connection_uri and os.getenv("MONGODB_PASSWORD"):
+                    import urllib.parse
+                    connection_uri = config.DEFAULT_URI_TEMPLATE.format(
+                        password=urllib.parse.quote_plus(os.getenv("MONGODB_PASSWORD", ""))
+                    )
+                if not connection_uri:
+                    raise ValueError("MONGODB_URI or MONGODB_PASSWORD is required for session store.")
+                self.client = MongoClient(connection_uri, server_api=ServerApi('1'))
+                self.db = self.client[config.DB_NAME]
 
         self.collection: Collection = self.db[config.WHATSAPP_SESSION_COLLECTION]
         self._ensure_indexes()
