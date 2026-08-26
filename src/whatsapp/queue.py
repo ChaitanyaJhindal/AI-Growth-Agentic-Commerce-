@@ -257,8 +257,8 @@ class WhatsAppQueue:
 # Shared singleton instance
 _whatsapp_queue = None
 
-def get_whatsapp_queue() -> WhatsAppQueue:
+def get_whatsapp_queue(db=None) -> WhatsAppQueue:
     global _whatsapp_queue
-    if _whatsapp_queue is None:
-        _whatsapp_queue = WhatsAppQueue()
+    if _whatsapp_queue is None or db is not None:
+        _whatsapp_queue = WhatsAppQueue(db=db)
     return _whatsapp_queue

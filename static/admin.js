@@ -33,6 +33,16 @@ const ordersTableBody = document.getElementById("orders-table-body");
 const patronsTableBody = document.getElementById("patrons-table-body");
 const categoryBarsList = document.getElementById("category-bars-list");
 
+// Abandoned Cart & WhatsApp Automation Elements
+const tabAbandonedCount = document.getElementById("tab-abandoned-count");
+const kpiAbandonedCount = document.getElementById("kpi-abandoned-count");
+const kpiAbandonedVal = document.getElementById("kpi-abandoned-val");
+const kpiReachableCount = document.getElementById("kpi-reachable-count");
+const kpiQueueTotal = document.getElementById("kpi-queue-total");
+const triggerCartCampaignBtn = document.getElementById("trigger-cart-campaign-btn");
+const campaignExecLog = document.getElementById("campaign-exec-log");
+const abandonedTableBody = document.getElementById("abandoned-table-body");
+
 // Inspector Modal
 const orderInspectorModal = document.getElementById("order-inspector-modal");
 const inspectorCloseBtn = document.getElementById("inspector-close-btn");
@@ -62,6 +72,7 @@ function getSafeImageUrl(url, index = 0) {
 document.addEventListener("DOMContentLoaded", () => {
   startLiveClock();
   loadAllAdminData();
+  loadAbandonedCartData();
   setupEventListeners();
 });
 
@@ -77,12 +88,16 @@ function startLiveClock() {
 function setupEventListeners() {
   refreshDataBtn.addEventListener("click", () => {
     refreshDataBtn.innerHTML = "Syncing...";
-    loadAllAdminData().then(() => {
+    Promise.all([loadAllAdminData(), loadAbandonedCartData()]).then(() => {
       refreshDataBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg> Sync`;
     });
   });
 
   exportOrdersBtn.addEventListener("click", exportOrdersAsJSON);
+
+  if (triggerCartCampaignBtn) {
+    triggerCartCampaignBtn.addEventListener("click", executeAbandonedCartRecoveryCampaign);
+  }
 
   // Tab Switching
   tabButtons.forEach(btn => {
@@ -148,6 +163,26 @@ async function loadAllAdminData() {
     }
   } catch (err) {
     console.error("Error loading admin atelier data:", err);
+  }
+}
+
+async function loadAbandonedCartData() {
+  try {
+    const res = await fetch(`${API_BASE}/api/automation/abandoned-cart-stats`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.success || !data.stats) return;
+
+    const stats = data.stats;
+    if (tabAbandonedCount) tabAbandonedCount.textContent = stats.abandoned_carts_count || 0;
+    if (kpiAbandonedCount) kpiAbandonedCount.textContent = stats.abandoned_carts_count || 0;
+    if (kpiAbandonedVal) kpiAbandonedVal.textContent = `$${(stats.abandoned_total_value || 0).toFixed(2)}`;
+    if (kpiReachableCount) kpiReachableCount.textContent = stats.reachable_via_whatsapp || 0;
+    if (kpiQueueTotal) kpiQueueTotal.textContent = (stats.queue && stats.queue.total) || 0;
+
+    renderAbandonedCartsTable(stats.active_users || []);
+  } catch (e) {
+    console.error("Error loading abandoned cart stats:", e);
   }
 }
 
@@ -259,7 +294,7 @@ function renderPatronsTable(users) {
   if (users.length === 0) {
     patronsTableBody.innerHTML = `
       <tr>
-        <td colspan="6" class="table-loading-cell">No registered patrons in MongoDB directory.</td>
+        <td colspan="7" class="table-loading-cell">No registered patrons in MongoDB directory.</td>
       </tr>
     `;
     return;
@@ -275,6 +310,7 @@ function renderPatronsTable(users) {
     tr.innerHTML = `
       <td><strong style="color: #ffffff;">${u.name}</strong></td>
       <td style="color: var(--text-secondary);">${u.email}</td>
+      <td><code style="color: var(--accent-gold); font-size: 0.8rem;">${u.phone || 'Not Linked'}</code></td>
       <td style="color: var(--text-muted);">${regDate}</td>
       <td>${u.wardrobe_count || 0} pieces saved</td>
       <td><strong>${u.orders_count || 0} orders</strong></td>
@@ -282,6 +318,119 @@ function renderPatronsTable(users) {
     `;
     patronsTableBody.appendChild(tr);
   });
+}
+
+function renderAbandonedCartsTable(users) {
+  if (!abandonedTableBody) return;
+  if (!users || users.length === 0) {
+    abandonedTableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="table-loading-cell">No active abandoned carts found in MongoDB right now.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  abandonedTableBody.innerHTML = "";
+  users.forEach(u => {
+    const tr = document.createElement("tr");
+    const lastCampaign = u.last_campaign_sent_at ? new Date(u.last_campaign_sent_at).toLocaleTimeString("en-US", {
+      hour: "2-digit", minute: "2-digit"
+    }) : "Never";
+
+    tr.innerHTML = `
+      <td><strong style="color: #ffffff;">${u.name || 'Patron'}</strong></td>
+      <td style="color: var(--text-secondary); font-size: 0.82rem;">${u.email}</td>
+      <td><code style="color: var(--accent-gold); font-size: 0.8rem;">${u.phone || 'No Phone (Fallback Test)'}</code></td>
+      <td>${u.cart_items_count} piece${u.cart_items_count === 1 ? '' : 's'}</td>
+      <td><strong style="color: var(--accent-gold);">$${(u.cart_total_value || 0).toFixed(2)}</strong></td>
+      <td style="color: var(--text-muted); font-size: 0.8rem;">${lastCampaign}</td>
+      <td>
+        <button class="btn-inspect send-single-cart-btn" data-email="${u.email}" data-phone="${u.phone || ''}" style="background: rgba(197, 160, 89, 0.15); border-color: rgba(197, 160, 89, 0.4); color: var(--accent-gold);">
+          ⚡ Message
+        </button>
+      </td>
+    `;
+
+    tr.querySelector(".send-single-cart-btn").addEventListener("click", () => {
+      executeSingleUserRecovery(u.email, u.phone);
+    });
+
+    abandonedTableBody.appendChild(tr);
+  });
+}
+
+async function executeAbandonedCartRecoveryCampaign() {
+  if (!triggerCartCampaignBtn) return;
+
+  triggerCartCampaignBtn.disabled = true;
+  triggerCartCampaignBtn.innerHTML = `<span>⏳</span> Synthesizing & Enqueueing...`;
+
+  if (campaignExecLog) {
+    campaignExecLog.style.display = "block";
+    campaignExecLog.innerHTML = `[${new Date().toLocaleTimeString()}] 🚀 Initiating Abandoned Cart AI Re-Engagement Pipeline...\n`;
+    campaignExecLog.innerHTML += `[${new Date().toLocaleTimeString()}] 🔍 Querying MongoDB users with active bags...\n`;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/automation/abandoned-cart-campaign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        coupon_code: "AURA20",
+        tone: "witty_hinglish",
+        cooldown_hours: 0.05, // low cooldown for admin test
+        max_users: 20
+      })
+    });
+
+    const data = await res.json();
+    if (campaignExecLog) {
+      if (data.success) {
+        campaignExecLog.innerHTML += `[${new Date().toLocaleTimeString()}] ✅ ${data.message}\n`;
+        campaignExecLog.innerHTML += `[${new Date().toLocaleTimeString()}] 📦 Processed: ${data.processed_count} patrons | Enqueued: ${data.enqueued_count} messages | Skipped: ${data.skipped_count}\n`;
+        if (data.details && data.details.length > 0) {
+          data.details.forEach(d => {
+            campaignExecLog.innerHTML += `  ✦ [${d.email} -> ${d.phone}] ${d.status}: "${(d.preview || '').slice(0, 60)}..."\n`;
+          });
+        }
+      } else {
+        campaignExecLog.innerHTML += `[${new Date().toLocaleTimeString()}] ❌ Execution notice: ${data.detail || data.error}\n`;
+      }
+    }
+
+    loadAbandonedCartData();
+  } catch (err) {
+    if (campaignExecLog) {
+      campaignExecLog.innerHTML += `[${new Date().toLocaleTimeString()}] ❌ Network error: ${err.message}\n`;
+    }
+  } finally {
+    triggerCartCampaignBtn.disabled = false;
+    triggerCartCampaignBtn.innerHTML = `<span>🚀</span> Launch AI WhatsApp Recovery Campaign`;
+  }
+}
+
+async function executeSingleUserRecovery(email, phone) {
+  if (!confirm(`Generate personalized WhatsApp message for ${email}?`)) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/automation/abandoned-cart-campaign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        coupon_code: "AURA20",
+        tone: "witty_hinglish",
+        override_phone: phone || "+919876543210",
+        cooldown_hours: 0.0,
+        max_users: 1
+      })
+    });
+    const data = await res.json();
+    alert(`Success: ${data.message || 'Message enqueued to MongoDB queue'}`);
+    loadAbandonedCartData();
+  } catch (e) {
+    alert(`Error: ${e.message}`);
+  }
 }
 
 function renderCategoryAnalytics(categories) {

@@ -57,7 +57,7 @@ class UserManager:
         except Exception as e:
             print(f"Notice on user collection index creation: {e}")
 
-    def signup(self, name: str, email: str, password: str) -> Dict[str, Any]:
+    def signup(self, name: str, email: str, password: str, phone: Optional[str] = None) -> Dict[str, Any]:
         """Registers a new user in MongoDB."""
         clean_email = email.strip().lower()
         clean_name = name.strip()
@@ -79,11 +79,13 @@ class UserManager:
         user_doc = {
             "name": clean_name,
             "email": clean_email,
+            "phone": phone.strip() if phone else None,
             "password_salt": salt_hex,
             "password_hash": hash_hex,
             "created_at": now,
             "wardrobe": [],
             "bag": [],
+            "bag_updated_at": None,
             "preferences": {}
         }
 
@@ -96,6 +98,7 @@ class UserManager:
                 "id": user_id,
                 "name": clean_name,
                 "email": clean_email,
+                "phone": user_doc.get("phone"),
                 "wardrobe": [],
                 "bag": [],
                 "created_at": now
@@ -125,6 +128,7 @@ class UserManager:
                 "id": str(user_doc["_id"]),
                 "name": user_doc.get("name", clean_email.split("@")[0].capitalize()),
                 "email": clean_email,
+                "phone": user_doc.get("phone"),
                 "wardrobe": user_doc.get("wardrobe", []),
                 "bag": user_doc.get("bag", []),
                 "created_at": user_doc.get("created_at", "")
@@ -141,19 +145,45 @@ class UserManager:
             "id": str(user_doc["_id"]),
             "name": user_doc.get("name", ""),
             "email": clean_email,
+            "phone": user_doc.get("phone"),
             "wardrobe": user_doc.get("wardrobe", []),
             "bag": user_doc.get("bag", []),
+            "bag_updated_at": user_doc.get("bag_updated_at"),
             "created_at": user_doc.get("created_at", "")
         }
 
-    def sync_user_data(self, email: str, wardrobe: Optional[List[Dict[str, Any]]] = None, bag: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
-        """Synchronizes user's saved wardrobe and shopping bag items into MongoDB."""
+    def update_user_phone(self, email: str, phone: str) -> Dict[str, Any]:
+        """Updates user contact phone number in MongoDB."""
+        clean_email = email.strip().lower()
+        clean_phone = phone.strip()
+        res = self.users_collection.update_one(
+            {"email": clean_email},
+            {"$set": {"phone": clean_phone}}
+        )
+        return {
+            "success": res.matched_count > 0,
+            "phone": clean_phone
+        }
+
+    def sync_user_data(
+        self,
+        email: str,
+        wardrobe: Optional[List[Dict[str, Any]]] = None,
+        bag: Optional[List[Dict[str, Any]]] = None,
+        phone: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Synchronizes user's saved wardrobe, shopping bag, and phone into MongoDB."""
         clean_email = email.strip().lower()
         update_fields = {}
+        now = datetime.now(timezone.utc).isoformat()
+        
         if wardrobe is not None:
             update_fields["wardrobe"] = wardrobe
         if bag is not None:
             update_fields["bag"] = bag
+            update_fields["bag_updated_at"] = now
+        if phone is not None:
+            update_fields["phone"] = phone.strip()
 
         if not update_fields:
             return {"success": True, "message": "Nothing to update."}
@@ -175,9 +205,12 @@ class UserManager:
         total: float,
         payment_id: Optional[str] = None,
         razorpay_order_id: Optional[str] = None,
-        payment_status: str = "Paid"
+        payment_status: str = "Paid",
+        coupon_code: Optional[str] = None,
+        discount_amount: float = 0.0,
+        subtotal: Optional[float] = None
     ) -> Dict[str, Any]:
-        """Places a verified paid order in MongoDB for a registered user."""
+        """Places a verified paid order in MongoDB for a registered user with coupon accounting."""
         clean_email = email.strip().lower()
         user = self.users_collection.find_one({"email": clean_email})
         if not user:
@@ -186,11 +219,16 @@ class UserManager:
         order_id = f"ORD-{secrets.token_hex(4).upper()}"
         now = datetime.now(timezone.utc).isoformat()
 
+        calculated_subtotal = subtotal if subtotal is not None else sum(i.get("price", 0) for i in items)
+
         order_doc = {
             "order_id": order_id,
             "user_email": clean_email,
             "user_name": user.get("name", "Customer"),
             "items": items,
+            "subtotal": round(float(calculated_subtotal), 2),
+            "coupon_code": coupon_code,
+            "discount_amount": round(float(discount_amount), 2),
             "total_amount": round(float(total), 2),
             "payment_id": payment_id,
             "razorpay_order_id": razorpay_order_id,
@@ -201,15 +239,17 @@ class UserManager:
         orders_collection = self.db["orders"]
         orders_collection.insert_one(order_doc)
 
-        # Clear user's active bag and append order to user's history
+        # Clear user's active bag and record order in history
         self.users_collection.update_one(
             {"email": clean_email},
             {
-                "$set": {"bag": []},
+                "$set": {"bag": [], "bag_updated_at": None},
                 "$push": {"orders": {
                     "order_id": order_id,
                     "payment_id": payment_id,
                     "items_count": len(items),
+                    "coupon_code": coupon_code,
+                    "discount_amount": order_doc["discount_amount"],
                     "total": order_doc["total_amount"],
                     "created_at": now
                 }}
@@ -220,6 +260,8 @@ class UserManager:
             "success": True,
             "order_id": order_id,
             "payment_id": payment_id,
+            "coupon_code": coupon_code,
+            "discount_amount": order_doc["discount_amount"],
             "total": order_doc["total_amount"],
             "created_at": now
         }

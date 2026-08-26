@@ -7,6 +7,12 @@ from src.whatsapp.queue import (
 from src.whatsapp.session_store import MongoWhatsAppSessionStore
 from src.whatsapp.baileys_client import BaileysClient, get_baileys_client
 from src.whatsapp.worker import WhatsAppWorker, get_whatsapp_worker
+from src.whatsapp.automation import (
+    CartCampaignAutomationManager,
+    get_automation_manager,
+    validate_coupon_code,
+    VALID_COUPONS
+)
 
 __all__ = [
     "WhatsAppQueue",
@@ -17,5 +23,9 @@ __all__ = [
     "BaileysClient",
     "get_baileys_client",
     "WhatsAppWorker",
-    "get_whatsapp_worker"
+    "get_whatsapp_worker",
+    "CartCampaignAutomationManager",
+    "get_automation_manager",
+    "validate_coupon_code",
+    "VALID_COUPONS"
 ]

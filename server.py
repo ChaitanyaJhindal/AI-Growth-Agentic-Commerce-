@@ -57,21 +57,33 @@ class SignUpRequest(BaseModel):
     name: str = Field(..., description="Full Name")
     email: str = Field(..., description="Email address")
     password: str = Field(..., description="Password (min 6 characters)")
+    phone: Optional[str] = Field(None, description="Optional phone number (e.g. +919876543210)")
 
 class LoginRequest(BaseModel):
     email: str = Field(..., description="Email address")
     password: str = Field(..., description="Password")
 
+class UpdatePhoneRequest(BaseModel):
+    email: str = Field(..., description="User email")
+    phone: str = Field(..., description="Phone number in E.164 format (e.g. +919876543210)")
+
 class SyncUserDataRequest(BaseModel):
     email: str = Field(..., description="User email")
     wardrobe: Optional[List[Dict[str, Any]]] = None
     bag: Optional[List[Dict[str, Any]]] = None
+    phone: Optional[str] = None
+
+class ValidateCouponRequest(BaseModel):
+    code: str = Field(..., description="Coupon / Promo code")
+    subtotal: float = Field(0.0, description="Current cart subtotal amount")
 
 class CheckoutOrderRequest(BaseModel):
     email: str = Field(..., description="User email")
     items: List[Dict[str, Any]] = Field(..., description="Ordered items")
     total: float = Field(..., description="Total price")
-
+    coupon_code: Optional[str] = Field(None, description="Applied coupon code")
+    discount_amount: Optional[float] = Field(0.0, description="Discount amount saved")
+    subtotal: Optional[float] = Field(None, description="Subtotal before discount")
 
 class CreateRazorpayOrderRequest(BaseModel):
     amount: float = Field(..., description="Amount in currency units (e.g. 50.00)")
@@ -85,6 +97,17 @@ class VerifyPaymentRequest(BaseModel):
     email: str = Field(..., description="User email")
     items: List[Dict[str, Any]] = Field(default_factory=list, description="Cart items")
     total: float = Field(..., description="Total order amount")
+    coupon_code: Optional[str] = Field(None, description="Applied coupon code")
+    discount_amount: Optional[float] = Field(0.0, description="Discount amount saved")
+    subtotal: Optional[float] = Field(None, description="Subtotal before discount")
+
+class TriggerAbandonedCartCampaignRequest(BaseModel):
+    coupon_code: Optional[str] = Field("AURA20", description="Promotional voucher code for re-engagement")
+    tone: Optional[str] = Field("witty_hinglish", description="Copywriting tone")
+    override_phone: Optional[str] = Field(None, description="Override recipient phone for test triggers")
+    cooldown_hours: Optional[float] = Field(1.0, description="Cooldown hours before re-messaging same user")
+    max_users: Optional[int] = Field(20, description="Max users to process in single batch")
+    user_email: Optional[str] = Field(None, description="Target specific user by email")
 
 
 # =====================================================================
@@ -121,9 +144,9 @@ async def health_check():
 
 @app.post("/api/auth/signup")
 async def signup(req: SignUpRequest):
-    """Registers a new user in MongoDB with PBKDF2 hashed password."""
+    """Registers a new user in MongoDB with PBKDF2 hashed password and optional phone."""
     manager = get_user_manager()
-    result = manager.signup(name=req.name, email=req.email, password=req.password)
+    result = manager.signup(name=req.name, email=req.email, password=req.password, phone=req.phone)
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Sign up failed."))
     return result
@@ -146,18 +169,41 @@ async def get_me(email: str):
         raise HTTPException(status_code=404, detail="User not found.")
     return {"success": True, "user": profile}
 
+@app.post("/api/user/phone")
+@app.post("/api/user/update-phone")
+async def update_user_phone_endpoint(req: UpdatePhoneRequest):
+    """Updates user contact phone number in MongoDB."""
+    manager = get_user_manager()
+    result = manager.update_user_phone(email=req.email, phone=req.phone)
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail="User not found.")
+    return result
+
 @app.post("/api/user/sync")
 async def sync_user_data(req: SyncUserDataRequest):
     """Synchronizes user's shopping bag and wardrobe into MongoDB."""
     manager = get_user_manager()
-    result = manager.sync_user_data(email=req.email, wardrobe=req.wardrobe, bag=req.bag)
+    result = manager.sync_user_data(email=req.email, wardrobe=req.wardrobe, bag=req.bag, phone=req.phone)
     return result
+
+@app.post("/api/coupon/validate")
+async def validate_coupon(req: ValidateCouponRequest):
+    """Validates coupon code and returns discount percentage and savings."""
+    from src.whatsapp import validate_coupon_code
+    return validate_coupon_code(code=req.code, subtotal=req.subtotal)
 
 @app.post("/api/orders/checkout")
 async def checkout_order(req: CheckoutOrderRequest):
-    """Places an order for the authenticated user and persists it in MongoDB."""
+    """Places an order for the authenticated user and persists it in MongoDB with coupon details."""
     manager = get_user_manager()
-    result = manager.create_order(email=req.email, items=req.items, total=req.total)
+    result = manager.create_order(
+        email=req.email,
+        items=req.items,
+        total=req.total,
+        coupon_code=req.coupon_code,
+        discount_amount=req.discount_amount or 0.0,
+        subtotal=req.subtotal
+    )
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Checkout failed."))
     return result
@@ -207,7 +253,7 @@ async def create_order(req: CreateRazorpayOrderRequest):
 async def verify_payment(req: VerifyPaymentRequest):
     """
     Verifies Razorpay payment signature using HMAC-SHA256.
-    If valid, marks order as paid and records it in MongoDB.
+    If valid, marks order as paid and records it in MongoDB with coupon details.
     """
     from src.payments import verify_razorpay_signature
 
@@ -234,7 +280,10 @@ async def verify_payment(req: VerifyPaymentRequest):
         total=req.total,
         payment_id=req.razorpay_payment_id,
         razorpay_order_id=req.razorpay_order_id,
-        payment_status="Paid (Razorpay)"
+        payment_status="Paid (Razorpay)",
+        coupon_code=req.coupon_code,
+        discount_amount=req.discount_amount or 0.0,
+        subtotal=req.subtotal
     )
 
     return {
@@ -242,8 +291,48 @@ async def verify_payment(req: VerifyPaymentRequest):
         "message": "Payment verified successfully.",
         "order_id": order_result.get("order_id"),
         "razorpay_payment_id": req.razorpay_payment_id,
-        "razorpay_order_id": req.razorpay_order_id
+        "razorpay_order_id": req.razorpay_order_id,
+        "coupon_code": req.coupon_code,
+        "discount_amount": req.discount_amount
     }
+
+
+# =====================================================================
+# Cart Campaign Automation Endpoints (MongoDB Abandoned Cart AI Re-Engagement)
+# =====================================================================
+
+@app.post("/api/automation/abandoned-cart-campaign")
+async def trigger_abandoned_cart_campaign_endpoint(req: TriggerAbandonedCartCampaignRequest):
+    """
+    Scans MongoDB for users with items in their bag, generates personalized Hinglish
+    copy with CampaignAgent (openai/gpt-oss-20b), and enqueues to WhatsApp Queue.
+    """
+    try:
+        from src.whatsapp import get_automation_manager
+        auto_mgr = get_automation_manager()
+        res = auto_mgr.trigger_abandoned_cart_campaign(
+            coupon_code=req.coupon_code or "AURA20",
+            tone=req.tone or "witty_hinglish",
+            cooldown_hours=req.cooldown_hours or 1.0,
+            override_phone=req.override_phone,
+            max_users=req.max_users or 20,
+            user_email=req.user_email
+        )
+        return res
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to execute abandoned cart campaign: {str(e)}")
+
+@app.get("/api/automation/abandoned-cart-stats")
+async def get_abandoned_cart_stats_endpoint():
+    """Returns real-time abandoned cart metrics from MongoDB."""
+    try:
+        from src.whatsapp import get_automation_manager
+        auto_mgr = get_automation_manager()
+        return {"success": True, "stats": auto_mgr.get_stats()}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to fetch cart stats: {str(e)}")
 
 
 # =====================================================================

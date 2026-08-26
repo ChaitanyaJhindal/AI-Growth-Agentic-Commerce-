@@ -9,6 +9,7 @@ localStorage.setItem("aura_thread_id", currentThreadId);
 let currentUser = JSON.parse(localStorage.getItem("aura_user") || "null");
 let wardrobeItems = JSON.parse(localStorage.getItem("aura_wardrobe") || "[]");
 let bagItems = JSON.parse(localStorage.getItem("aura_bag") || "[]");
+let appliedCoupon = JSON.parse(localStorage.getItem("aura_applied_coupon") || "null");
 let activeEnsembleProducts = [];
 let pendingCheckout = false;
 
@@ -70,7 +71,19 @@ const bagCount = document.getElementById("bag-count");
 const drawerBagCount = document.getElementById("drawer-bag-count");
 const bagItemsList = document.getElementById("bag-items-list");
 const bagSubtotal = document.getElementById("bag-subtotal");
+const bagSubtotalVal = document.getElementById("bag-subtotal-val");
+const bagDiscountRow = document.getElementById("bag-discount-row");
+const bagDiscountVal = document.getElementById("bag-discount-val");
+const discountPctLabel = document.getElementById("discount-pct-label");
 const checkoutBtn = document.getElementById("checkout-btn");
+
+// Coupon Elements
+const couponCodeInput = document.getElementById("coupon-code-input");
+const applyCouponBtn = document.getElementById("apply-coupon-btn");
+const couponAppliedBadge = document.getElementById("coupon-applied-badge");
+const couponAppliedText = document.getElementById("coupon-applied-text");
+const removeCouponBtn = document.getElementById("remove-coupon-btn");
+const couponMsg = document.getElementById("coupon-msg");
 
 const wardrobeDrawer = document.getElementById("wardrobe-drawer");
 const wardrobeCloseBtn = document.getElementById("wardrobe-close-btn");
@@ -98,6 +111,7 @@ const loginPassword = document.getElementById("login-password");
 const loginError = document.getElementById("login-error");
 const signupName = document.getElementById("signup-name");
 const signupEmail = document.getElementById("signup-email");
+const signupPhone = document.getElementById("signup-phone");
 const signupPassword = document.getElementById("signup-password");
 const signupError = document.getElementById("signup-error");
 const authSkipBtn = document.getElementById("auth-skip-btn");
@@ -180,6 +194,22 @@ function setupEventListeners() {
   // Checkout Button (Login Gate)
   if (checkoutBtn) {
     checkoutBtn.addEventListener("click", handleCheckoutClick);
+  }
+
+  // Coupon Event Handlers
+  if (applyCouponBtn) {
+    applyCouponBtn.addEventListener("click", handleApplyCouponClick);
+  }
+  if (couponCodeInput) {
+    couponCodeInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleApplyCouponClick();
+      }
+    });
+  }
+  if (removeCouponBtn) {
+    removeCouponBtn.addEventListener("click", handleRemoveCouponClick);
   }
 
   // Voice Affordance
@@ -456,6 +486,8 @@ async function handleSignupSubmit(e) {
   submitBtn.disabled = true;
   submitBtn.textContent = "Creating Account...";
 
+  const phoneVal = signupPhone ? signupPhone.value.trim() : "";
+
   try {
     const res = await fetch(`${API_BASE}/api/auth/signup`, {
       method: "POST",
@@ -463,7 +495,8 @@ async function handleSignupSubmit(e) {
       body: JSON.stringify({
         name: signupName.value.trim(),
         email: signupEmail.value.trim(),
-        password: signupPassword.value
+        password: signupPassword.value,
+        phone: phoneVal || null
       })
     });
 
@@ -513,12 +546,79 @@ async function syncUserDataWithMongo() {
       body: JSON.stringify({
         email: currentUser.email,
         wardrobe: wardrobeItems,
-        bag: bagItems
+        bag: bagItems,
+        phone: currentUser.phone || (signupPhone ? signupPhone.value.trim() : null)
       })
     });
   } catch (err) {
     console.log("Notice on syncing user collections to MongoDB:", err);
   }
+}
+
+// =====================================================================
+// Coupon & Promo Code Logic
+// =====================================================================
+
+async function handleApplyCouponClick() {
+  if (!couponCodeInput) return;
+  const code = couponCodeInput.value.trim().toUpperCase();
+  if (!code) {
+    showCouponMsg("Please enter a promo code (e.g. AURA20, VIP25).", "error");
+    return;
+  }
+
+  let subtotal = 0;
+  bagItems.forEach(i => subtotal += (i.price || 0));
+
+  if (subtotal <= 0) {
+    showCouponMsg("Please add items to your shopping bag first.", "error");
+    return;
+  }
+
+  applyCouponBtn.disabled = true;
+  applyCouponBtn.textContent = "...";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/coupon/validate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: code, subtotal: subtotal })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.valid) {
+      showCouponMsg(data.error || "Invalid coupon code.", "error");
+      return;
+    }
+
+    appliedCoupon = data;
+    localStorage.setItem("aura_applied_coupon", JSON.stringify(appliedCoupon));
+    showCouponMsg(`✓ ${data.description || 'Privilege discount applied!'}`, "success");
+    couponCodeInput.value = "";
+    updateBagUI();
+  } catch (err) {
+    showCouponMsg(`Could not validate coupon: ${err.message}`, "error");
+  } finally {
+    applyCouponBtn.disabled = false;
+    applyCouponBtn.textContent = "Apply";
+  }
+}
+
+function handleRemoveCouponClick() {
+  appliedCoupon = null;
+  localStorage.removeItem("aura_applied_coupon");
+  showCouponMsg("Coupon removed.", "success");
+  setTimeout(() => {
+    if (couponMsg) couponMsg.style.display = "none";
+  }, 2000);
+  updateBagUI();
+}
+
+function showCouponMsg(msg, type = "error") {
+  if (!couponMsg) return;
+  couponMsg.textContent = msg;
+  couponMsg.className = `coupon-msg ${type}`;
+  couponMsg.style.display = "block";
 }
 
 // =====================================================================
@@ -543,8 +643,15 @@ function handleCheckoutClick() {
 async function executeOrderCheckout() {
   if (bagItems.length === 0) return;
 
-  let total = 0;
-  bagItems.forEach(i => total += (i.price || 0));
+  let subtotal = 0;
+  bagItems.forEach(i => subtotal += (i.price || 0));
+
+  let discountAmount = 0;
+  if (appliedCoupon && appliedCoupon.discount_percent) {
+    discountAmount = parseFloat((subtotal * (appliedCoupon.discount_percent / 100.0)).toFixed(2));
+  }
+
+  let finalPayable = Math.max(1.0, parseFloat((subtotal - discountAmount).toFixed(2)));
 
   checkoutBtn.disabled = true;
   checkoutBtn.textContent = "Initiating Payment...";
@@ -555,7 +662,7 @@ async function executeOrderCheckout() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        amount: total,
+        amount: finalPayable,
         currency: "INR",
         receipt: `rcpt_${Date.now().toString(36)}`
       })
@@ -572,14 +679,14 @@ async function executeOrderCheckout() {
       amount: orderData.amount,
       currency: orderData.currency || "INR",
       name: "AURA Luxury Fashion",
-      description: "Curated Fashion Capsule Order",
+      description: appliedCoupon ? `Curated Order (Coupon: ${appliedCoupon.code})` : "Curated Fashion Capsule Order",
       image: "https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=200&auto=format&fit=crop",
       order_id: orderData.order_id,
       handler: async function (response) {
         checkoutBtn.textContent = "Verifying Payment...";
         
         try {
-          // 3. Verify Payment Signature on Backend
+          // 3. Verify Payment Signature on Backend with Coupon details
           const verifyRes = await fetch(`${API_BASE}/api/verify-payment`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -589,7 +696,10 @@ async function executeOrderCheckout() {
               razorpay_signature: response.razorpay_signature,
               email: currentUser.email,
               items: bagItems,
-              total: total
+              total: finalPayable,
+              subtotal: subtotal,
+              coupon_code: appliedCoupon ? appliedCoupon.code : null,
+              discount_amount: discountAmount
             })
           });
 
@@ -600,14 +710,16 @@ async function executeOrderCheckout() {
 
           // Payment successfully verified & recorded in MongoDB
           bagItems = [];
+          appliedCoupon = null;
           localStorage.setItem("aura_bag", JSON.stringify(bagItems));
+          localStorage.removeItem("aura_applied_coupon");
           updateBagUI();
 
           bagDrawer.style.display = "none";
           if (orderRefId) {
-            orderRefId.innerHTML = `${verifyData.order_id || 'ORD-AURA-2026'} <br><small style="color:var(--text-secondary);font-size:0.75rem;">(Razorpay ID: ${response.razorpay_payment_id})</small>`;
+            orderRefId.innerHTML = `${verifyData.order_id || 'ORD-AURA-2026'} <br><small style="color:var(--text-secondary);font-size:0.75rem;">(Razorpay ID: ${response.razorpay_payment_id}${verifyData.coupon_code ? ' | Coupon: ' + verifyData.coupon_code : ''})</small>`;
           }
-          if (orderRefTotal) orderRefTotal.textContent = `$${total.toFixed(2)}`;
+          if (orderRefTotal) orderRefTotal.textContent = `$${finalPayable.toFixed(2)}`;
           if (orderSuccessModal) orderSuccessModal.style.display = "flex";
         } catch (vErr) {
           alert(`Verification Error: ${vErr.message}`);
@@ -619,11 +731,12 @@ async function executeOrderCheckout() {
       prefill: {
         name: currentUser.name || "Customer",
         email: currentUser.email || "",
-        contact: "9999999999"
+        contact: currentUser.phone || "9999999999"
       },
       notes: {
         customer_email: currentUser.email,
-        item_count: bagItems.length.toString()
+        item_count: bagItems.length.toString(),
+        coupon_code: appliedCoupon ? appliedCoupon.code : "None"
       },
       theme: {
         color: "#c5a059" // AURA signature luxury gold accent
@@ -1204,14 +1317,17 @@ function updateBagUI() {
   if (bagItems.length === 0) {
     bagItemsList.innerHTML = `<p class="empty-msg">Your shopping bag is currently empty.</p>`;
     bagSubtotal.textContent = "$0.00";
+    if (bagSubtotalVal) bagSubtotalVal.textContent = "$0.00";
+    if (bagDiscountRow) bagDiscountRow.style.display = "none";
+    if (couponAppliedBadge) couponAppliedBadge.style.display = "none";
     return;
   }
 
   bagItemsList.innerHTML = "";
-  let total = 0;
+  let subtotal = 0;
 
   bagItems.forEach((item, index) => {
-    total += (item.price || 0);
+    subtotal += (item.price || 0);
     const row = document.createElement("div");
     row.className = "cart-item-row";
     row.innerHTML = `
@@ -1227,7 +1343,27 @@ function updateBagUI() {
     bagItemsList.appendChild(row);
   });
 
-  bagSubtotal.textContent = `$${total.toFixed(2)}`;
+  if (bagSubtotalVal) bagSubtotalVal.textContent = `$${subtotal.toFixed(2)}`;
+
+  let discount = 0;
+  if (appliedCoupon && appliedCoupon.discount_percent) {
+    discount = (subtotal * (appliedCoupon.discount_percent / 100.0));
+    if (bagDiscountRow) {
+      bagDiscountRow.style.display = "flex";
+      if (discountPctLabel) discountPctLabel.textContent = `${appliedCoupon.discount_percent}%`;
+      if (bagDiscountVal) bagDiscountVal.textContent = `-$${discount.toFixed(2)}`;
+    }
+    if (couponAppliedBadge) {
+      couponAppliedBadge.style.display = "inline-flex";
+      if (couponAppliedText) couponAppliedText.textContent = `${appliedCoupon.code} Applied (-${appliedCoupon.discount_percent}%)`;
+    }
+  } else {
+    if (bagDiscountRow) bagDiscountRow.style.display = "none";
+    if (couponAppliedBadge) couponAppliedBadge.style.display = "none";
+  }
+
+  const finalPayable = Math.max(0.0, subtotal - discount);
+  bagSubtotal.textContent = `$${finalPayable.toFixed(2)}`;
 }
 
 // =====================================================================
