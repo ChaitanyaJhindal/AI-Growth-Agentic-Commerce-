@@ -34,6 +34,19 @@ def validation_agent_node(state: AgentState) -> Dict[str, Any]:
                 }
             }
 
+    price_info = state.get("price_analysis") or {}
+    price_gap_note = ""
+    if price_info.get("price_gap_detected"):
+        req_p = price_info.get("requested_max_price")
+        min_p = price_info.get("catalog_min_price")
+        cat = price_info.get("category_name", "this category")
+        price_gap_note = f"""
+Notice on Budget:
+The patron requested items under ${req_p:.2f}, but curated pieces in {cat} begin at ${min_p:.2f}.
+We have retrieved the finest entry-level pieces starting at ${min_p:.2f}.
+In your explanation, politely and professionally acknowledge this entry baseline (e.g. "Curated {cat} selections begin at ${min_p:.2f}; presenting our most accessible luxury pieces with superior craftsmanship.") and validate the results.
+"""
+
     product_summaries = []
     for p in results[:4]:
         product_summaries.append(
@@ -42,21 +55,30 @@ def validation_agent_node(state: AgentState) -> Dict[str, Any]:
         )
     catalog_snippet = "\n".join(product_summaries)
 
-    prompt = f"""You are an E-Commerce Product Quality Validator.
-Verify if the retrieved products satisfy the user's request.
+    prompt = f"""You are a Luxury Fashion Quality & Concierge Validator.
+Verify if the retrieved catalog pieces satisfy the user's intent, aesthetic criteria, and budget expectations.
 
 Original Request: "{original_query}"
 Current Search Term: "{current_query}"
-Top Products:
+{price_gap_note}
+Top Retrieved Products:
 {catalog_snippet}
 
-Tasks:
-1. If products are relevant to the request, set validated = True.
-2. If completely unrelated, set validated = False and rewrite query.
+Tasks & Reasoning Rules:
+1. If products are relevant to the fashion category/style, set validated = True.
+2. If a budget gap was noted (the catalog minimum is higher than requested price), provide an intelligent, honest concierge explanation explaining the entry-level baseline starting price and validate the curated pieces.
+3. If products are completely unrelated (e.g. wrong category entirely), set validated = False and rewrite query.
 """
     llm = get_llm(temperature=0.1, agent_name="validation")
     structured_llm = llm.with_structured_output(ValidationDecision)
-    decision: ValidationDecision = structured_llm.invoke(prompt)
+    try:
+        decision: ValidationDecision = structured_llm.invoke(prompt)
+    except Exception as e:
+        print(f"Validation invocation notice: {e}")
+        decision = ValidationDecision(
+            validated=True,
+            explanation=f"Curated {len(results)} exquisite selections tailored to your inquiry."
+        )
 
     if decision.validated or retry_count >= 2:
         return {

@@ -110,3 +110,4 @@ class AgentState(TypedDict):
     validation_result: Dict[str, Any]
     selected_product: Optional[Dict[str, Any]]
     upsell_results: List[Dict[str, Any]]
+    price_analysis: Optional[Dict[str, Any]]

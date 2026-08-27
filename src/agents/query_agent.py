@@ -23,8 +23,8 @@ def query_agent_node(state: AgentState) -> Dict[str, Any]:
         summary_lines = [f"{i}. [{p.get('product_id')}] {p.get('name')} (${p.get('price')})" for i, p in enumerate(prev_results[:4], 1)]
         results_context = "\nPrevious Search Results Visible to User:\n" + "\n".join(summary_lines)
 
-    prompt = f"""You are an Expert Conversational E-Commerce Fashion Parser.
-Analyze the user's latest message in light of the ongoing conversation history.
+    prompt = f"""You are an Expert Conversational E-Commerce Fashion & Budget Parser for a luxury atelier.
+Analyze the user's latest message in light of the ongoing conversation history and extract precise semantic search criteria, metadata filters, and budget constraints.
 
 {dialogue_context}
 {results_context}
@@ -32,17 +32,28 @@ Active Filters from Previous Turn: {prev_filters}
 
 Latest User Message: "{user_query}"
 
-Catalog Knowledge:
+Catalog Knowledge & Taxonomies:
 - Master Categories: Apparel, Footwear, Accessories, Personal Care
 - Genders: Men, Women, Unisex, Boys, Girls
-- Articles: Tshirts, Shirts, Jeans, Casual Shoes, Sports Shoes, Watches, Bags, Track Pants, Jackets, Socks, etc.
-- Colors: Black, Blue, Navy Blue, White, Grey, Red, Green, Silver, etc.
+- Articles: Tshirts, Shirts, Jeans, Casual Shoes, Sports Shoes, Watches, Handbags, Wallets, Belts, Sunglasses, Track Pants, Jackets, Kurtas, Tops, Heels, Flats, Sandals, Flip Flops, Socks, etc.
+- Colors: Black, Blue, Navy Blue, White, Grey, Red, Green, Silver, Gold, Brown, Beige, Olive, Charcoal, etc.
 
-Critical Instructions:
-1. Determine if this message is a **new_search** (user is searching for a new item/category) OR a **refinement** (user is modifying the existing search like "only blue", "under 50", "show in Nike").
-2. Set intent = 'search' if it is a new search, or 'filter_refinement' if modifying the previous search.
-3. If it is a new search, DO NOT carry over unrelated filters from the previous turn.
-4. Output a standalone cleaned search query.
+Critical Parsing & Reasoning Guidelines:
+1. **Intent Determination**:
+   - Set intent = 'search' if user initiates a new search or product category inquiry.
+   - Set intent = 'filter_refinement' if user modifies/filters previous results (e.g. "under $50", "show only blue", "in Nike", "cheaper ones").
+   - Set intent = 'select_product' if user selects or asks about a specific item (e.g. "I like the 2nd one", "style product #1").
+2. **Budget & Money Filter Extraction (USD)**:
+   - Extract `max_price` for any budget ceiling: "under $50", "below 40", "max 60", "within 35 bucks", "less than $25", "under 1500 INR" (convert INR to approximate USD: e.g. 1500 INR ≈ $18 USD).
+   - Extract `min_price` for floors: "above $100", "over 50", "at least $80", "premium pieces over 120".
+   - Extract both `min_price` and `max_price` for ranges: "between $40 and $80", "$50-$100", "around $50".
+   - If user asks for "budget-friendly", "cheap", or "affordable" without an explicit number, set a reasonable ceiling if category is known or leave flexible.
+3. **Cleaned Search Query Formulation**:
+   - `cleaned_query` must contain the core fashion attributes, style, brand, gender, and category WITHOUT the explicit price numbers (e.g. for "puma running shoes under $50", output cleaned_query: "puma running shoes").
+   - For filter refinements on existing context (e.g. user previously searched for watches and now says "under $100"), preserve the subject: "watches".
+4. **Brand & Gender Precision**:
+   - Extract explicit brand (Nike, Puma, Titan, Tommy Hilfiger, Peter England, Fossil, Fastrack, etc.).
+   - Extract explicit gender (Men, Women, Unisex, Boys, Girls).
 """
     llm = get_llm(temperature=0.1, agent_name="query")
     structured_llm = llm.with_structured_output(QueryAnalysis)

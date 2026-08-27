@@ -28,19 +28,20 @@ def context_agent_node(state: AgentState) -> Dict[str, Any]:
             "filters": filters
         }
 
-    prompt = f"""You are an E-Commerce Fashion Context Evaluator.
-Determine if the shopping request has sufficient specificity to return relevant fashion products.
+    prompt = f"""You are an Expert E-Commerce Fashion Context Evaluator for a luxury atelier.
+Determine if the shopping request or budget refinement has sufficient specificity to execute a targeted catalog search.
 
 User Query: "{current_query}"
 Current Filters: {filters}
 Clarification Rounds So Far: {clarification_count}/2
 
-Rules:
-1. If the request has clear intent (e.g. "women running shoes", "casual blue shirt", "black watch"), set has_sufficient_context = True.
-2. If the request is severely vague with zero specifics (e.g. just "I want clothes", "give me something"):
+Evaluation Rules:
+1. If the request has clear intent, category, or budget parameter (e.g. "women running shoes", "casual blue shirt", "black watch", "under $50", "from $80", "yes show from $50"), set has_sufficient_context = True.
+2. If the user's message is answering a previous budget or category question (e.g. "from $50", "make it $70", "for men"), incorporate that into final_search_query / inferred_filters and set has_sufficient_context = True.
+3. If the request is severely vague with zero specifics (e.g. just "I want clothes", "give me something", "help"):
    - Set has_sufficient_context = False.
-   - Generate exactly ONE concise follow-up question.
-3. If the user mentions a category (e.g. "watch", "shoes", "jeans"), it IS sufficient to perform an initial search unless completely meaningless.
+   - Generate exactly ONE concise, luxury concierge follow-up question.
+4. If a category is mentioned (e.g. "shoes", "watches", "tshirts"), it IS sufficient to perform a curated search.
 """
     llm = get_llm(temperature=0.1, agent_name="context")
     structured_llm = llm.with_structured_output(ContextEvaluation)
