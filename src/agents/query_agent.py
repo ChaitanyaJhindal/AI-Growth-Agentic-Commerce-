@@ -43,11 +43,12 @@ Critical Parsing & Reasoning Guidelines:
    - Set intent = 'search' if user initiates a new search or product category inquiry.
    - Set intent = 'filter_refinement' if user modifies/filters previous results (e.g. "under $50", "show only blue", "in Nike", "cheaper ones").
    - Set intent = 'select_product' if user selects or asks about a specific item (e.g. "I like the 2nd one", "style product #1").
-2. **Budget & Money Filter Extraction (USD)**:
-   - Extract `max_price` for any budget ceiling: "under $50", "below 40", "max 60", "within 35 bucks", "less than $25", "under 1500 INR" (convert INR to approximate USD: e.g. 1500 INR ≈ $18 USD).
-   - Extract `min_price` for floors: "above $100", "over 50", "at least $80", "premium pieces over 120".
-   - Extract both `min_price` and `max_price` for ranges: "between $40 and $80", "$50-$100", "around $50".
-   - If user asks for "budget-friendly", "cheap", or "affordable" without an explicit number, set a reasonable ceiling if category is known or leave flexible.
+2. **Budget & Money Filter Extraction ($1 USD = ₹50 INR Conversion)**:
+   - Catalog baseline data is indexed where $1 USD = ₹50 INR (e.g. $40 = ₹2,000 INR; $20 = ₹1,000 INR; $100 = ₹5,000 INR).
+   - If the user provides an amount in Indian Rupees / INR / ₹ / Rs (e.g. "under ₹2000", "below 1500 rs", "budget 2500 inr", "max 1000 rupees"), DIVIDE by 50 to extract the filter in catalog units (e.g. ₹2000 / 50 = 40.0; ₹1500 / 50 = 30.0; ₹1000 / 50 = 20.0; ₹5000 / 50 = 100.0).
+   - If the user specifies a plain number > 150 (e.g. "under 2000", "below 1500", "between 1000 and 3000"), interpret it as INR and divide by 50 (e.g. 2000 -> 40.0).
+   - If the user specifies a dollar sign (e.g. "under $50", "below $40"), use the direct number (e.g. 50.0, 40.0).
+   - Extract `max_price` for ceilings ("under ₹2000", "below 1500"), `min_price` for floors ("above ₹4000"), and both for ranges ("between ₹1500 and ₹3000").
 3. **Cleaned Search Query Formulation**:
    - `cleaned_query` must contain the core fashion attributes, style, brand, gender, and category WITHOUT the explicit price numbers (e.g. for "puma running shoes under $50", output cleaned_query: "puma running shoes").
    - For filter refinements on existing context (e.g. user previously searched for watches and now says "under $100"), preserve the subject: "watches".

@@ -5,6 +5,12 @@ import sys
 # Ensure project root is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 from src.agents.workflow import agent_app
 from src.agents.query_agent import query_agent_node
 from src.search.engine import ProductHybridSearchEngine
@@ -100,8 +106,60 @@ class TestMoneyFiltersAndUpsell(unittest.TestCase):
         self.assertTrue(val_res.get("validated", False))
         explanation = val_res.get("explanation", "")
         self.assertTrue(len(explanation) > 0)
-        print("\n[Validation Rationale & Budget Upsell]:", explanation)
+        print("\n[USD Validation Rationale & Budget Upsell]:", explanation)
+
+    def test_query_agent_inr_price_ceiling_extraction(self):
+        """Tests that Query Agent parses INR price ceiling 'under ₹2000' at $1 = ₹50 rate (=> $40)."""
+        state = {
+            "original_query": "men running shoes under ₹2000",
+            "current_query": "men running shoes under ₹2000",
+            "conversation_history": []
+        }
+        res = query_agent_node(state)
+        filters = res.get("filters", {})
+        
+        self.assertIn("price", filters)
+        self.assertIn("$lte", filters["price"])
+        self.assertEqual(filters["price"]["$lte"], 40.0)
+
+    def test_query_agent_inr_price_range_extraction(self):
+        """Tests that Query Agent parses INR price range 'between ₹1500 and ₹3500' (=> $30 to $70)."""
+        state = {
+            "original_query": "casual shirts between ₹1500 and ₹3500",
+            "current_query": "casual shirts between ₹1500 and ₹3500",
+            "conversation_history": []
+        }
+        res = query_agent_node(state)
+        filters = res.get("filters", {})
+        
+        self.assertIn("price", filters)
+        self.assertEqual(filters["price"].get("$gte"), 30.0)
+        self.assertEqual(filters["price"].get("$lte"), 70.0)
+
+    def test_end_to_end_inr_budget_upsell(self):
+        """
+        End-to-end multi-agent pipeline test in INR:
+        When user asks for 'watches under ₹1000' (which is $20, below the ₹4000+ catalog baseline),
+        the pipeline validates results and provides an INR concierge explanation.
+        """
+        input_state = {
+            "original_query": "watches under ₹1000",
+            "current_query": "watches under ₹1000"
+        }
+        config = {"configurable": {"thread_id": "test_inr_budget_upsell_1"}}
+        res = agent_app.invoke(input_state, config=config)
+
+        self.assertFalse(res.get("needs_clarification", False))
+        search_results = res.get("search_results", [])
+        self.assertGreater(len(search_results), 0)
+
+        val_res = res.get("validation_result", {})
+        self.assertTrue(val_res.get("validated", False))
+        explanation = val_res.get("explanation", "")
+        self.assertTrue(len(explanation) > 0)
+        print("\n[INR Validation Rationale & Budget Upsell]:", explanation)
 
 
 if __name__ == "__main__":
     unittest.main()
+

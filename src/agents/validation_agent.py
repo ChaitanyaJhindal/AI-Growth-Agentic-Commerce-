@@ -40,18 +40,22 @@ def validation_agent_node(state: AgentState) -> Dict[str, Any]:
         req_p = price_info.get("requested_max_price")
         min_p = price_info.get("catalog_min_price")
         cat = price_info.get("category_name", "this category")
+        req_inr = int((req_p or 0) * 50)
+        min_inr = int((min_p or 0) * 50)
         price_gap_note = f"""
-Notice on Budget:
-The patron requested items under ${req_p:.2f}, but curated pieces in {cat} begin at ${min_p:.2f}.
-We have retrieved the finest entry-level pieces starting at ${min_p:.2f}.
-In your explanation, politely and professionally acknowledge this entry baseline (e.g. "Curated {cat} selections begin at ${min_p:.2f}; presenting our most accessible luxury pieces with superior craftsmanship.") and validate the results.
+Notice on Budget & Currency (1 USD = ₹50 INR):
+The patron requested items under ₹{req_inr:,}, but curated pieces in {cat} begin at ₹{min_inr:,}.
+We have retrieved the finest entry-level pieces starting at ₹{min_inr:,}.
+In your explanation, politely and professionally acknowledge this entry baseline in Indian Rupees (e.g. "Curated {cat} selections begin at ₹{min_inr:,}; presenting our most accessible luxury pieces with superior craftsmanship.") and validate the results.
 """
 
     product_summaries = []
     for p in results[:4]:
+        raw_price = p.get('price') or 0
+        inr_price = int(raw_price * 50)
         product_summaries.append(
             f"- [{p.get('product_id')}] {p.get('name')} | Brand: {p.get('brand')} | Gender: {p.get('gender')} | "
-            f"Type: {p.get('article_type')} | Price: ${p.get('price')}"
+            f"Type: {p.get('article_type')} | Price: ₹{inr_price:,}"
         )
     catalog_snippet = "\n".join(product_summaries)
 

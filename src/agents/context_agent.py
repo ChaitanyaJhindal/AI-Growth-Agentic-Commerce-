@@ -36,8 +36,8 @@ Current Filters: {filters}
 Clarification Rounds So Far: {clarification_count}/2
 
 Evaluation Rules:
-1. If the request has clear intent, category, or budget parameter (e.g. "women running shoes", "casual blue shirt", "black watch", "under $50", "from $80", "yes show from $50"), set has_sufficient_context = True.
-2. If the user's message is answering a previous budget or category question (e.g. "from $50", "make it $70", "for men"), incorporate that into final_search_query / inferred_filters and set has_sufficient_context = True.
+1. If the request has clear intent, category, or budget parameter (e.g. "women running shoes", "casual blue shirt", "black watch", "under ₹2000", "under $50", "from ₹4000", "yes show from ₹4000"), set has_sufficient_context = True.
+2. If the user's message is answering a previous budget or category question (e.g. "from ₹4000", "make it ₹3500", "for men"), incorporate that into final_search_query / inferred_filters and set has_sufficient_context = True.
 3. If the request is severely vague with zero specifics (e.g. just "I want clothes", "give me something", "help"):
    - Set has_sufficient_context = False.
    - Generate exactly ONE concise, luxury concierge follow-up question.

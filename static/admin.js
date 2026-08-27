@@ -60,6 +60,14 @@ const FALLBACK_IMAGES = [
   "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=300&auto=format&fit=crop"
 ];
 
+const USD_TO_INR = 50; // 1 USD = 50 INR
+
+function formatINR(usdPrice) {
+  if (usdPrice === undefined || usdPrice === null || isNaN(usdPrice)) return "₹0";
+  const inr = Math.round(usdPrice * USD_TO_INR);
+  return `₹${inr.toLocaleString('en-IN')}`;
+}
+
 function getSafeImageUrl(url, index = 0) {
   if (url && url.startsWith("http")) return url;
   return FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
@@ -176,7 +184,7 @@ async function loadAbandonedCartData() {
     const stats = data.stats;
     if (tabAbandonedCount) tabAbandonedCount.textContent = stats.abandoned_carts_count || 0;
     if (kpiAbandonedCount) kpiAbandonedCount.textContent = stats.abandoned_carts_count || 0;
-    if (kpiAbandonedVal) kpiAbandonedVal.textContent = `$${(stats.abandoned_total_value || 0).toFixed(2)}`;
+    if (kpiAbandonedVal) kpiAbandonedVal.textContent = formatINR(stats.abandoned_total_value || 0);
     if (kpiReachableCount) kpiReachableCount.textContent = stats.reachable_via_whatsapp || 0;
     if (kpiQueueTotal) kpiQueueTotal.textContent = (stats.queue && stats.queue.total) || 0;
 
@@ -191,10 +199,10 @@ async function loadAbandonedCartData() {
 // =====================================================================
 
 function renderKPIs(metrics) {
-  kpiGrossVolume.textContent = `$${(metrics.gross_volume || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+  kpiGrossVolume.textContent = formatINR(metrics.gross_volume || 0);
   kpiTotalOrders.textContent = metrics.total_orders || 0;
   kpiTotalUsers.textContent = metrics.total_users || 0;
-  kpiAvgOrder.textContent = `$${(metrics.average_order_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+  kpiAvgOrder.textContent = formatINR(metrics.average_order_value || 0);
 }
 
 function filterAndRenderOrders() {
@@ -261,7 +269,7 @@ function renderOrdersTable(orders) {
       </td>
       <td style="color: var(--text-muted); font-size: 0.8rem;">${formattedDate}</td>
       <td>${itemsCount} piece${itemsCount === 1 ? '' : 's'}</td>
-      <td><strong style="color: var(--accent-gold);">$${(order.total_amount || 0).toFixed(2)}</strong></td>
+      <td><strong style="color: var(--accent-gold);">${formatINR(order.total_amount || 0)}</strong></td>
       <td><code style="color: var(--text-secondary); font-size: 0.75rem;">${order.payment_id || 'Direct'}</code></td>
       <td>
         <select class="status-dropdown" data-order-id="${order.order_id}">
@@ -314,7 +322,7 @@ function renderPatronsTable(users) {
       <td style="color: var(--text-muted);">${regDate}</td>
       <td>${u.wardrobe_count || 0} pieces saved</td>
       <td><strong>${u.orders_count || 0} orders</strong></td>
-      <td><strong style="color: var(--accent-gold);">$${(u.total_spent || 0).toFixed(2)}</strong></td>
+      <td><strong style="color: var(--accent-gold);">${formatINR(u.total_spent || 0)}</strong></td>
     `;
     patronsTableBody.appendChild(tr);
   });
@@ -343,7 +351,7 @@ function renderAbandonedCartsTable(users) {
       <td style="color: var(--text-secondary); font-size: 0.82rem;">${u.email}</td>
       <td><code style="color: var(--accent-gold); font-size: 0.8rem;">${u.phone || 'No Phone (Fallback Test)'}</code></td>
       <td>${u.cart_items_count} piece${u.cart_items_count === 1 ? '' : 's'}</td>
-      <td><strong style="color: var(--accent-gold);">$${(u.cart_total_value || 0).toFixed(2)}</strong></td>
+      <td><strong style="color: var(--accent-gold);">${formatINR(u.cart_total_value || 0)}</strong></td>
       <td style="color: var(--text-muted); font-size: 0.8rem;">${lastCampaign}</td>
       <td>
         <button class="btn-inspect send-single-cart-btn" data-email="${u.email}" data-phone="${u.phone || ''}" style="background: rgba(197, 160, 89, 0.15); border-color: rgba(197, 160, 89, 0.4); color: var(--accent-gold);">
@@ -494,7 +502,7 @@ function inspectOrder(order) {
   inspectorOrderMeta.innerHTML = `Patron: <strong style="color:#ffffff;">${order.user_name || 'Member'}</strong> (${order.user_email}) &bull; ${dateStr}`;
   inspectorPayId.textContent = order.payment_id || "Direct Verified";
   inspectorPayStatus.textContent = order.status || "Paid";
-  inspectorTotalAmount.textContent = `$${(order.total_amount || 0).toFixed(2)}`;
+  inspectorTotalAmount.textContent = formatINR(order.total_amount || 0);
 
   inspectorItemsList.innerHTML = "";
   (order.items || []).forEach((item, idx) => {
@@ -506,7 +514,7 @@ function inspectOrder(order) {
         <div class="inspector-item-name">${item.name}</div>
         <div class="inspector-item-brand">${item.brand || 'Studio Collection'} &bull; ${item.article_type || 'Piece'}</div>
       </div>
-      <div class="inspector-item-price">$${(item.price || 0).toFixed(2)}</div>
+      <div class="inspector-item-price">${formatINR(item.price || 0)}</div>
     `;
     inspectorItemsList.appendChild(row);
   });

@@ -13,6 +13,19 @@ let appliedCoupon = JSON.parse(localStorage.getItem("aura_applied_coupon") || "n
 let activeEnsembleProducts = [];
 let pendingCheckout = false;
 
+const USD_TO_INR = 50; // 1 USD = ₹50 INR
+
+function formatINR(usdPrice) {
+  if (usdPrice === undefined || usdPrice === null || isNaN(usdPrice)) return "₹0";
+  const inr = Math.round(usdPrice * USD_TO_INR);
+  return `₹${inr.toLocaleString('en-IN')}`;
+}
+
+function getPriceINR(usdPrice) {
+  if (usdPrice === undefined || usdPrice === null || isNaN(usdPrice)) return 0;
+  return Math.round(usdPrice * USD_TO_INR);
+}
+
 function generateUUID() {
   return "aura-" + Math.random().toString(36).substring(2, 9);
 }
@@ -318,7 +331,7 @@ async function openProfileModal() {
 
     let lifetimeSpend = 0;
     orders.forEach(o => lifetimeSpend += (o.total_amount || 0));
-    profileStatSpend.textContent = `$${lifetimeSpend.toFixed(2)}`;
+    profileStatSpend.textContent = formatINR(lifetimeSpend);
     profileOrdersCountBadge.textContent = `${orders.length} Acquisition${orders.length === 1 ? '' : 's'}`;
 
     renderProfileOrders(orders);
@@ -355,7 +368,7 @@ function renderProfileOrders(orders) {
           <img src="${getSafeImageUrl(item.image_url, idx)}" class="order-item-thumb" alt="${item.name}"/>
           <div class="order-item-info">
             <span class="order-item-name">${item.name}</span>
-            <span class="order-item-price">$${item.price ? item.price.toFixed(2) : '0.00'}</span>
+            <span class="order-item-price">${formatINR(item.price)}</span>
           </div>
         </div>
       `;
@@ -374,7 +387,7 @@ function renderProfileOrders(orders) {
       </div>
       <div class="order-card-footer">
         <span>Complimentary Express Delivery</span>
-        <span>Total Paid: <strong>$${(order.total_amount || 0).toFixed(2)}</strong></span>
+        <span>Total Paid: <strong>${formatINR(order.total_amount)}</strong></span>
       </div>
     `;
 
@@ -652,17 +665,20 @@ async function executeOrderCheckout() {
   }
 
   let finalPayable = Math.max(1.0, parseFloat((subtotal - discountAmount).toFixed(2)));
+  const inrFinalPayable = Math.max(1, getPriceINR(finalPayable));
+  const inrSubtotal = getPriceINR(subtotal);
+  const inrDiscount = getPriceINR(discountAmount);
 
   checkoutBtn.disabled = true;
   checkoutBtn.textContent = "Initiating Payment...";
 
   try {
-    // 1. Create Razorpay Order on Backend
+    // 1. Create Razorpay Order on Backend in INR Rupees
     const orderRes = await fetch(`${API_BASE}/api/create-order`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        amount: finalPayable,
+        amount: inrFinalPayable,
         currency: "INR",
         receipt: `rcpt_${Date.now().toString(36)}`
       })
@@ -696,10 +712,10 @@ async function executeOrderCheckout() {
               razorpay_signature: response.razorpay_signature,
               email: currentUser.email,
               items: bagItems,
-              total: finalPayable,
-              subtotal: subtotal,
+              total: inrFinalPayable,
+              subtotal: inrSubtotal,
               coupon_code: appliedCoupon ? appliedCoupon.code : null,
-              discount_amount: discountAmount
+              discount_amount: inrDiscount
             })
           });
 
@@ -719,7 +735,7 @@ async function executeOrderCheckout() {
           if (orderRefId) {
             orderRefId.innerHTML = `${verifyData.order_id || 'ORD-AURA-2026'} <br><small style="color:var(--text-secondary);font-size:0.75rem;">(Razorpay ID: ${response.razorpay_payment_id}${verifyData.coupon_code ? ' | Coupon: ' + verifyData.coupon_code : ''})</small>`;
           }
-          if (orderRefTotal) orderRefTotal.textContent = `$${finalPayable.toFixed(2)}`;
+          if (orderRefTotal) orderRefTotal.textContent = formatINR(finalPayable);
           if (orderSuccessModal) orderSuccessModal.style.display = "flex";
         } catch (vErr) {
           alert(`Verification Error: ${vErr.message}`);
@@ -1019,7 +1035,7 @@ function renderResults(data) {
         </div>
         <h3 class="card-title">${prod.name}</h3>
         <div class="card-footer">
-          <span class="card-price">$${prod.price ? prod.price.toFixed(2) : '45.00'}</span>
+          <span class="card-price">${formatINR(prod.price)}</span>
           <button class="explore-outfit-btn">Complete Look</button>
         </div>
       </div>
@@ -1051,8 +1067,8 @@ function renderFilterPills(filters) {
     if (!val) continue;
     let label = `${key}: ${JSON.stringify(val)}`;
     if (key === "price" && typeof val === "object") {
-      if (val.$lte) label = `Under $${val.$lte}`;
-      else if (val.$gte) label = `Above $${val.$gte}`;
+      if (val.$lte) label = `Under ${formatINR(val.$lte)}`;
+      else if (val.$gte) label = `Above ${formatINR(val.$gte)}`;
     } else if (typeof val === "string") {
       label = val;
     }
@@ -1086,7 +1102,7 @@ async function openOutfitStudio(selectedProduct) {
     <img src="${safeImg}" class="anchor-img" alt="${selectedProduct.name}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGES[0]}'"/>
     <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-secondary); margin-top: 0.75rem;">${selectedProduct.brand || 'Studio'}</div>
     <div class="anchor-name">${selectedProduct.name}</div>
-    <div class="anchor-price">$${selectedProduct.price ? selectedProduct.price.toFixed(2) : '55.00'}</div>
+    <div class="anchor-price">${formatINR(selectedProduct.price)}</div>
     <button class="btn-primary" style="margin-top: 1rem; width: 100%;" id="add-anchor-btn">Add Piece Only</button>
   `;
 
@@ -1099,7 +1115,7 @@ async function openOutfitStudio(selectedProduct) {
   // Start Magic Stylist stream animation while fetching pairings
   streamStylistInsightText(`✨ AI Runway Stylist is analyzing fabric drape, occasion, and harmonious pairings for ${selectedProduct.name}...`);
   ensembleCardsList.innerHTML = `<div style="color: var(--text-secondary); font-size: 0.85rem; padding: 1.5rem; text-align: center;">✦ AI Stylist is composing dynamic outfit pairings...</div>`;
-  ensembleTotalPrice.textContent = `$${(selectedProduct.price || 55.00).toFixed(2)}`;
+  ensembleTotalPrice.textContent = formatINR(selectedProduct.price || 55.00);
 
   let pairings = [];
   try {
@@ -1202,7 +1218,7 @@ function renderEnsembleItems(selectedProduct, pairings) {
         <img src="${getSafeImageUrl(item.image_url, idx + 1)}" class="ensemble-piece-img" alt="${item.name}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGES[(idx + 1) % FALLBACK_IMAGES.length]}'"/>
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary);">${item.article_type || 'Complementary'}</div>
         <div class="ensemble-piece-name">${item.name}</div>
-        <div class="ensemble-piece-price">$${item.price ? item.price.toFixed(2) : '35.00'}</div>
+        <div class="ensemble-piece-price">${formatINR(item.price)}</div>
       `;
       ensembleCardsList.appendChild(pieceCard);
     });
@@ -1212,7 +1228,7 @@ function renderEnsembleItems(selectedProduct, pairings) {
     if (strip) strip.style.display = "none";
   }
 
-  ensembleTotalPrice.textContent = `$${total.toFixed(2)}`;
+  ensembleTotalPrice.textContent = formatINR(total);
 }
 
 function renderMiniCapsuleStrip(selectedProduct, pairings) {
@@ -1243,7 +1259,7 @@ function renderMiniCapsuleStrip(selectedProduct, pairings) {
       <div class="capsule-mini-info">
         <span class="capsule-mini-role">${item.isAnchor ? '✦ ' + item.roleName : item.roleName}</span>
         <span class="capsule-mini-name" title="${item.name}">${item.name}</span>
-        <span class="capsule-mini-price">$${item.price ? item.price.toFixed(2) : '45.00'}</span>
+        <span class="capsule-mini-price">${formatINR(item.price)}</span>
       </div>
     `;
     miniContainer.appendChild(miniCard);
@@ -1287,7 +1303,7 @@ function updateWardrobeUI() {
       <div style="flex: 1;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary);">${item.brand || 'Studio'}</div>
         <div style="font-weight: 500; font-size: 0.9rem;">${item.name}</div>
-        <div style="font-weight: 600; margin-top: 0.25rem;">$${item.price ? item.price.toFixed(2) : '0.00'}</div>
+        <div style="font-weight: 600; margin-top: 0.25rem;">${formatINR(item.price)}</div>
       </div>
       <button class="btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.75rem;">Add to Bag</button>
     `;
@@ -1316,8 +1332,8 @@ function updateBagUI() {
 
   if (bagItems.length === 0) {
     bagItemsList.innerHTML = `<p class="empty-msg">Your shopping bag is currently empty.</p>`;
-    bagSubtotal.textContent = "$0.00";
-    if (bagSubtotalVal) bagSubtotalVal.textContent = "$0.00";
+    bagSubtotal.textContent = "₹0";
+    if (bagSubtotalVal) bagSubtotalVal.textContent = "₹0";
     if (bagDiscountRow) bagDiscountRow.style.display = "none";
     if (couponAppliedBadge) couponAppliedBadge.style.display = "none";
     return;
@@ -1335,7 +1351,7 @@ function updateBagUI() {
       <div style="flex: 1;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary);">${item.brand || 'Studio'}</div>
         <div style="font-weight: 500; font-size: 0.9rem;">${item.name}</div>
-        <div style="font-weight: 600; margin-top: 0.25rem;">$${item.price ? item.price.toFixed(2) : '0.00'}</div>
+        <div style="font-weight: 600; margin-top: 0.25rem;">${formatINR(item.price)}</div>
       </div>
       <button style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;" title="Remove">&times;</button>
     `;
@@ -1343,7 +1359,7 @@ function updateBagUI() {
     bagItemsList.appendChild(row);
   });
 
-  if (bagSubtotalVal) bagSubtotalVal.textContent = `$${subtotal.toFixed(2)}`;
+  if (bagSubtotalVal) bagSubtotalVal.textContent = formatINR(subtotal);
 
   let discount = 0;
   if (appliedCoupon && appliedCoupon.discount_percent) {
@@ -1351,7 +1367,7 @@ function updateBagUI() {
     if (bagDiscountRow) {
       bagDiscountRow.style.display = "flex";
       if (discountPctLabel) discountPctLabel.textContent = `${appliedCoupon.discount_percent}%`;
-      if (bagDiscountVal) bagDiscountVal.textContent = `-$${discount.toFixed(2)}`;
+      if (bagDiscountVal) bagDiscountVal.textContent = `-${formatINR(discount)}`;
     }
     if (couponAppliedBadge) {
       couponAppliedBadge.style.display = "inline-flex";
@@ -1363,7 +1379,7 @@ function updateBagUI() {
   }
 
   const finalPayable = Math.max(0.0, subtotal - discount);
-  bagSubtotal.textContent = `$${finalPayable.toFixed(2)}`;
+  bagSubtotal.textContent = formatINR(finalPayable);
 }
 
 // =====================================================================
@@ -1392,7 +1408,7 @@ async function loadTrendingCurations() {
           </div>
           <h3 class="card-title">${prod.name}</h3>
           <div class="card-footer">
-            <span class="card-price">$${prod.price ? prod.price.toFixed(2) : '55.00'}</span>
+            <span class="card-price">${formatINR(prod.price)}</span>
             <button class="explore-outfit-btn">Complete Look</button>
           </div>
         </div>
@@ -1411,18 +1427,18 @@ async function loadTrendingCurations() {
 // =====================================================================
 
 const DEFAULT_CATALOG_PROMPTS_CLIENT = [
-  "Minimal black running sneakers under $80...",
+  "Minimal black running sneakers under ₹4,000...",
   "Blue casual cotton shirt for dinner...",
-  "White summer linen dress under $60...",
+  "White summer linen dress under ₹3,000...",
   "Men slim fit black formal trousers...",
-  "Classic silver chronograph watch under $100...",
+  "Classic silver chronograph watch under ₹5,000...",
   "Navy blue hooded sweatshirt for winter...",
-  "Women casual floral print top under $45...",
+  "Women casual floral print top under ₹2,250...",
   "Puma breathable sports running shoes...",
   "Beige tailored semi-formal blazer...",
   "Black leather crossbody handbag...",
   "Olive green casual cargo pants...",
-  "Red round neck cotton t-shirt under $30...",
+  "Red round neck cotton t-shirt under ₹1,500...",
   "Brown formal leather shoes for office...",
   "Unisex vintage black sunglasses..."
 ];

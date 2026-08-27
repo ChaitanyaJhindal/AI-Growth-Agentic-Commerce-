@@ -73,7 +73,7 @@ Guidelines:
         prompt_user = f"""Customer: {customer_name}
 Bag Items ({len(bag_items)} items): {', '.join(item_names)}
 Categories: {', '.join(categories)}
-Total Cart Value: ${total_price:.2f}
+Total Cart Value: ₹{total_price * 50:,.0f}
 Discount Code: {discount_code}
 Target Channel: {channel}
 

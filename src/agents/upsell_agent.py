@@ -243,9 +243,10 @@ Generate your Chain-of-Thought reasoning, Aesthetic Vibe, Color Strategy, and 2-
     # -----------------------------------------------------------------
     candidate_lines = []
     for c in candidates:
+        raw_p = c.get('price') or 0
         candidate_lines.append(
             f"product_id: {c.get('product_id')} | Name: {c.get('name')} | Category: {c.get('article_type')} | "
-            f"Color: {c.get('base_color')} | Brand: {c.get('brand')} | Price: ${c.get('price')}"
+            f"Color: {c.get('base_color')} | Brand: {c.get('brand')} | Price: ₹{int(raw_p * 50):,}"
         )
     candidate_text = "\n".join(candidate_lines)
 
