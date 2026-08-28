@@ -71,15 +71,6 @@ flowchart TD
 
 ---
 
-## 💱 Global Currency & Normalization ($1 = ₹50 INR)
-
-* **Normalized Catalog**: Products are cataloged in USD units ($40 USD = ₹2,000 INR).
-* **Indian Rupee UI (`₹`)**: 100% of product cards, active filter pills, capsule totals, wardrobe items, and order history are formatted in Indian Rupees using `formatINR()`.
-* **Autonomous Budget Reasoning**: When an AI Buyer or human queries in INR (`"running shoes under ₹3000"`), the Query Agent automatically divides by 50 (`max_price = 60.0`) to search the index without requiring destructive database schema migrations.
-* **Deterministic Razorpay Orders**: Converted to integer paise (`amount_in_inr * 100`) and cryptographically verified via HMAC-SHA256.
-
----
-
 ## 🛡️ "The Bar": Deterministic Gating, Explainability & Audit Trail
 
 1. **Strict Budget Gating**: External AI buyers specify `max_authorized_budget_inr`. If the computed order total exceeds this limit, the merchant rejects the transaction with HTTP 422 `BUDGET_GATING_VIOLATION` (failure handled gracefully).
