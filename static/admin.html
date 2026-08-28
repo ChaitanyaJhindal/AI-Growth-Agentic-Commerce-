@@ -90,6 +90,7 @@
       <button class="admin-tab active" data-tab="tab-orders">Acquisitions Stream (<span id="tab-orders-count">0</span>)</button>
       <button class="admin-tab" data-tab="tab-patrons">Patron Directory (<span id="tab-users-count">0</span>)</button>
       <button class="admin-tab" data-tab="tab-abandoned">⚡ Cart Re-Engagement (<span id="tab-abandoned-count">0</span>)</button>
+      <button class="admin-tab" data-tab="tab-a2a">🤖 AI Buyers & A2A (<span id="tab-a2a-count">0</span>)</button>
       <button class="admin-tab" data-tab="tab-analytics">Category Intelligence</button>
     </div>
 
@@ -237,7 +238,83 @@
       </div>
     </section>
 
-    <!-- TAB 4: CATEGORY & COLLECTION INTELLIGENCE -->
+    <!-- TAB 4: AI BUYERS & AGENT-TO-AGENT (A2A) COMMERCE -->
+    <section class="tab-pane" id="tab-a2a" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; background: var(--bg-surface-bright, #18181b); padding: 1.25rem 1.5rem; border-radius: var(--radius-sm, 8px); border: 1px solid var(--border-subtle, rgba(255,255,255,0.1));">
+        <div>
+          <h3 style="font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #fff; margin-bottom: 0.25rem;">Autonomous AI Buyer Protocol Stream (AP2 / x402 / MCP)</h3>
+          <p style="font-size: 0.85rem; color: var(--text-secondary, #a1a1aa);">Real-time telemetry of machine-to-machine acquisitions executed by external AI Shopping Agents.</p>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+          <a href="/.well-known/agent-protocol.json" target="_blank" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1rem; font-size: 0.85rem; text-decoration: none;">
+            <span>📜</span> Protocol Manifest
+          </a>
+          <a href="/.well-known/mcp.json" target="_blank" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1rem; font-size: 0.85rem; text-decoration: none;">
+            <span>🔌</span> MCP Schema
+          </a>
+        </div>
+      </div>
+
+      <!-- Real-time A2A Metrics -->
+      <div class="metrics-grid" style="margin-bottom: 1.5rem;">
+        <div class="metric-card">
+          <div class="metric-card-top">
+            <span class="metric-label">Autonomous A2A Orders</span>
+            <span class="metric-trend up" style="color: #34d399;">Machine Driven</span>
+          </div>
+          <div class="metric-value" id="kpi-a2a-orders">0</div>
+          <span class="metric-sub">Executed via Protocol API</span>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card-top">
+            <span class="metric-label">A2A Gross Volume</span>
+            <span class="metric-trend up" style="color: #c5a059;">₹ INR</span>
+          </div>
+          <div class="metric-value" id="kpi-a2a-gmv">₹0.00</div>
+          <span class="metric-sub">Autonomous machine GMV</span>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card-top">
+            <span class="metric-label">Active AI Buyers</span>
+            <span class="metric-trend up" style="color: #60a5fa;">Connected Agents</span>
+          </div>
+          <div class="metric-value" id="kpi-a2a-buyers">0</div>
+          <span class="metric-sub">Unique agent caller IDs</span>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card-top">
+            <span class="metric-label">Gating Enforcement</span>
+            <span class="metric-trend up" style="color: #10b981;">100% Gated</span>
+          </div>
+          <div class="metric-value" style="font-size: 1.25rem; color: #34d399;">STRICT BOUNDS</div>
+          <span class="metric-sub">Spend authorization enforced</span>
+        </div>
+      </div>
+
+      <!-- A2A Transactions Table -->
+      <div class="table-card">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>AI Buyer Agent ID</th>
+              <th>Beneficiary Patron</th>
+              <th>Protocol Standard</th>
+              <th>Pieces</th>
+              <th>Amount Settled</th>
+              <th>Audit Ledger Status</th>
+            </tr>
+          </thead>
+          <tbody id="a2a-table-body">
+            <tr>
+              <td colspan="7" class="table-loading-cell">Loading autonomous A2A acquisitions stream...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 5: CATEGORY & COLLECTION INTELLIGENCE -->
     <section class="tab-pane" id="tab-analytics" style="display: none;">
       <div class="analytics-grid">
         <div class="analytics-card">

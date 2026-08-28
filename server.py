@@ -16,13 +16,17 @@ from src.agents.state import AgentState
 from src.agents.nodes import upsell_agent_node, get_search_engine
 from src.search.engine import serialize_doc
 from src.auth import get_user_manager
+from src.protocol.router import protocol_router
 
 # Initialize FastAPI
 app = FastAPI(
-    title="AURA - AI-Native Luxury Fashion Concierge API",
-    description="Backend API powered by LangGraph, Groq LLM (openai/gpt-oss-120b), and MongoDB Atlas Hybrid Search with User Authentication.",
+    title="AURA - AI-Native Luxury Fashion Concierge & AI Buyer Protocol API",
+    description="Backend API powered by LangGraph, Groq LLM (openai/gpt-oss-120b), MongoDB Atlas Hybrid Search, and AP2/MCP AI Buyer Protocol.",
     version="1.0.0"
 )
+
+# Mount AI Buyer Commerce Protocol Router
+app.include_router(protocol_router)
 
 # Enable CORS
 app.add_middleware(

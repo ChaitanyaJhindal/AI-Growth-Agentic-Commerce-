@@ -43,6 +43,13 @@ const triggerCartCampaignBtn = document.getElementById("trigger-cart-campaign-bt
 const campaignExecLog = document.getElementById("campaign-exec-log");
 const abandonedTableBody = document.getElementById("abandoned-table-body");
 
+// AI Buyer & A2A Elements
+const tabA2aCount = document.getElementById("tab-a2a-count");
+const kpiA2aOrders = document.getElementById("kpi-a2a-orders");
+const kpiA2aGmv = document.getElementById("kpi-a2a-gmv");
+const kpiA2aBuyers = document.getElementById("kpi-a2a-buyers");
+const a2aTableBody = document.getElementById("a2a-table-body");
+
 // Inspector Modal
 const orderInspectorModal = document.getElementById("order-inspector-modal");
 const inspectorCloseBtn = document.getElementById("inspector-close-btn");
@@ -81,6 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
   startLiveClock();
   loadAllAdminData();
   loadAbandonedCartData();
+  loadA2ATelemetry();
   setupEventListeners();
 });
 
@@ -96,7 +104,7 @@ function startLiveClock() {
 function setupEventListeners() {
   refreshDataBtn.addEventListener("click", () => {
     refreshDataBtn.innerHTML = "Syncing...";
-    Promise.all([loadAllAdminData(), loadAbandonedCartData()]).then(() => {
+    Promise.all([loadAllAdminData(), loadAbandonedCartData(), loadA2ATelemetry()]).then(() => {
       refreshDataBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg> Sync`;
     });
   });
@@ -191,6 +199,28 @@ async function loadAbandonedCartData() {
     renderAbandonedCartsTable(stats.active_users || []);
   } catch (e) {
     console.error("Error loading abandoned cart stats:", e);
+  }
+}
+
+async function loadA2ATelemetry() {
+  try {
+    const res = await fetch(`${API_BASE}/protocol/v1/telemetry`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data) return;
+
+    const ordersCount = data.total_a2a_orders || 0;
+    const totalGmv = data.total_a2a_gmv_inr || 0;
+    const buyersCount = (data.active_ai_buyers || []).length;
+
+    if (tabA2aCount) tabA2aCount.textContent = ordersCount;
+    if (kpiA2aOrders) kpiA2aOrders.textContent = ordersCount;
+    if (kpiA2aGmv) kpiA2aGmv.textContent = formatINR(totalGmv / USD_TO_INR);
+    if (kpiA2aBuyers) kpiA2aBuyers.textContent = buyersCount;
+
+    renderA2ATable(data.recent_transactions || []);
+  } catch (e) {
+    console.error("Error loading A2A telemetry:", e);
   }
 }
 
@@ -365,6 +395,40 @@ function renderAbandonedCartsTable(users) {
     });
 
     abandonedTableBody.appendChild(tr);
+  });
+}
+
+function renderA2ATable(orders) {
+  if (!a2aTableBody) return;
+  if (!orders || orders.length === 0) {
+    a2aTableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="table-loading-cell">No autonomous A2A orders executed yet. Run <code>python scripts/ai_buyer_agent.py</code> to simulate.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  a2aTableBody.innerHTML = "";
+  orders.forEach(order => {
+    const tr = document.createElement("tr");
+    const formattedDate = order.created_at ? new Date(order.created_at).toLocaleTimeString("en-US", {
+      hour: "2-digit", minute: "2-digit"
+    }) : "Recent";
+
+    const piecesCount = (order.items || []).length;
+    const amountInr = order.total_amount_inr || ((order.total_amount || 0) * USD_TO_INR);
+
+    tr.innerHTML = `
+      <td><strong style="color: #ffffff;">${order.order_id}</strong></td>
+      <td><code style="color: #60a5fa; font-size: 0.8rem;">${order.buyer_agent_id || 'AI_Buyer_Agent'}</code></td>
+      <td style="color: var(--text-secondary); font-size: 0.82rem;">${order.user_email}</td>
+      <td><span style="background: rgba(52, 211, 153, 0.15); color: #34d399; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">${order.protocol_version || 'AP2/1.0'}</span></td>
+      <td>${piecesCount} piece${piecesCount === 1 ? '' : 's'}</td>
+      <td><strong style="color: var(--accent-gold);">${formatINR(amountInr / USD_TO_INR)}</strong></td>
+      <td><span style="color: #34d399; font-size: 0.8rem; font-weight: 500;">✓ Settled & Audited</span></td>
+    `;
+    a2aTableBody.appendChild(tr);
   });
 }
 
