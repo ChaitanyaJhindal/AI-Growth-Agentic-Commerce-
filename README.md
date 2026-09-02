@@ -1,8 +1,10 @@
 # AURA — AI-Native Luxury Fashion Concierge & Agentic Commerce Platform
 
+[![Track](https://img.shields.io/badge/Razorpay%20Hackathon-Track%2001%3A%20AI%20Growth%20%26%20Agentic%20Commerce-blueviolet?style=for-the-badge)](https://razorpay.com)
 [![Production Status](https://img.shields.io/badge/Production-Live-success?style=for-the-badge&logo=render)](https://ai-growth-agentic-commerce.onrender.com)
-[![Protocol](https://img.shields.io/badge/Protocol-AP2%20%2F%20MCP%20%2F%20x402-blueviolet?style=for-the-badge)](https://ai-growth-agentic-commerce.onrender.com/.well-known/agent-protocol.json)
-[![Architecture](https://img.shields.io/badge/Architecture-LangGraph%20Multi--Agent-blue?style=for-the-badge&logo=diagramsdotnet)](https://github.com/ChaitanyaJhindal/AI-Growth-Agentic-Commerce-)
+[![Protocol](https://img.shields.io/badge/Protocol-AP2%20%2F%20MCP%20%2F%20x402-blue?style=for-the-badge)](https://ai-growth-agentic-commerce.onrender.com/.well-known/agent-protocol.json)
+[![Payment Engine](https://img.shields.io/badge/Payments-Razorpay%20Standard%20%26%20A2A%20Settlement-blue?style=for-the-badge&logo=razorpay)](https://razorpay.com)
+[![Architecture](https://img.shields.io/badge/Architecture-LangGraph%20Multi--Agent-0052CC?style=for-the-badge&logo=diagramsdotnet)](https://github.com/ChaitanyaJhindal/AI-Growth-Agentic-Commerce-)
 [![LLM Inference](https://img.shields.io/badge/LLM-Groq%20(120B%20%26%2020B)-orange?style=for-the-badge)](https://groq.com)
 [![Vector Search](https://img.shields.io/badge/Search-MongoDB%20Atlas%20Hybrid%20RRF-green?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/atlas)
 [![Embeddings](https://img.shields.io/badge/Embeddings-Voyage%20AI%20(512--dim)-indigo?style=for-the-badge)](https://voyageai.com)
@@ -14,25 +16,129 @@
 | Service / Interface | Live URL | Description |
 | :--- | :--- | :--- |
 | **🛍️ Production Storefront** | [https://ai-growth-agentic-commerce.onrender.com](https://ai-growth-agentic-commerce.onrender.com) | Conversational Luxury Fashion Concierge & AI Styling Experience |
-| **📊 Executive Atelier Admin** | [https://ai-growth-agentic-commerce.onrender.com/admin](https://ai-growth-agentic-commerce.onrender.com/admin) | Real-Time Revenue Analytics, Orders, Patrons & A2A Telemetry |
+| **📊 Executive Atelier Admin** | [https://ai-growth-agentic-commerce.onrender.com/admin](https://ai-growth-agentic-commerce.onrender.com/admin) | Real-Time Revenue Analytics, Orders, Patrons & A2A Machine Telemetry |
 | **📜 AP2 Agent Discovery Manifest** | [https://ai-growth-agentic-commerce.onrender.com/.well-known/agent-protocol.json](https://ai-growth-agentic-commerce.onrender.com/.well-known/agent-protocol.json) | Machine-readable capability & endpoint manifest for external AI Buyers |
 | **🔌 MCP Tool Schema** | [https://ai-growth-agentic-commerce.onrender.com/.well-known/mcp.json](https://ai-growth-agentic-commerce.onrender.com/.well-known/mcp.json) | Model Context Protocol (MCP) declarations for Claude & AutoGPT |
 | **📱 WhatsApp QR Pairing** | [https://ai-growth-agentic-commerce.onrender.com/whatsapp](https://ai-growth-agentic-commerce.onrender.com/whatsapp) | Live Baileys Engine QR Scanner & Campaign Dispatcher |
-| **💓 Keep-Alive Health Probe** | [https://ai-growth-agentic-commerce.onrender.com/health](https://ai-growth-agentic-commerce.onrender.com/health) | Uptime Monitoring & Health Check Endpoint |
+| **💓 Keep-Alive Health Probe** | [https://ai-growth-agentic-commerce.onrender.com/health](https://ai-growth-agentic-commerce.onrender.com/health) | Uptime Monitoring & Database Health Check Endpoint |
 
 ---
 
-## 💎 Executive Summary
+## 🎯 Track 01 Problem Statement Mapping
 
-> **"Most AI commerce experiences stop at recommendations. AURA goes further: AI agents can discover products, apply bounded discounts, and transact within explicit spending limits."**
+> **Official Challenge:** *"Grow the merchant’s revenue, and make them sellable to AI buyers. Build an agent that grows revenue for a merchant using Razorpay test-mode APIs, OR makes a merchant transactable by an AI buyer end-to-end."*
 
-**AURA** is an AI-native e-commerce platform built for the emerging **Agentic Commerce** economy. It features a **Dual-Sided Architecture**:
-1. **Human-to-AI Luxury Concierge**: Human shoppers interact with a conversational multi-agent stylist that searches 44,000+ fashion pieces via hybrid vector search, resolves budget gaps gracefully, and executes Razorpay in-app checkouts.
-2. **Machine-to-Machine (A2A) Autonomous Merchant**: External AI buyers (Claude Desktop via **MCP**, AutoGPT, LangChain agents) can programmatically discover, query, negotiate quotes, and execute bounded checkouts within strict spending authorizations (`max_authorized_budget_inr`).
+AURA accomplishes **both** sides of the challenge simultaneously through a **Dual-Sided Architecture**:
+
+### 1. Growing Merchant Revenue (AI Growth Engine)
+* **Upsell & Cross-Sell Agent:** Chain-of-Thought (CoT) stylist dynamically composes high-affinity complementary pieces and editorial styling notes from a 44,000+ catalog item collection, expanding average basket size (AOV).
+* **Autonomous Abandoned Cart Recovery:** Identifies incomplete carts in MongoDB, synthesizes high-converting Hinglish/English copy using Groq `gpt-oss-20b`, and dispatches messages via an ultra-lightweight Baileys WhatsApp worker.
+* **Graceful Budget-Floor Upsell:** When shopper queries fall below catalog price floors, AURA intercepts the gap, retrieves entry-level luxury alternatives, and politely explains the baseline in `₹`, preventing lost sales.
+
+### 2. Transactable by AI Buyers (Agent-to-Agent / A2A Protocol)
+* **Autonomous Discovery:** Exposes AP2 (`/.well-known/agent-protocol.json`) and MCP (`/.well-known/mcp.json`) for zero-configuration integration with external agents (Claude Desktop, AutoGPT, LangChain).
+* **Machine Catalog Query & Quotes:** Programmatic endpoints (`/protocol/v1/catalog/query` and `/protocol/v1/quote`) providing itemized pricing, applied promotional vouchers, and mathematical explainability strings.
+* **Bounded & Gated Checkout:** Strict budget compliance via `max_authorized_budget_inr`.
+* **Cryptographic Razorpay Settlement:** Server-side HMAC-SHA256 signature verification and dedicated persistent ledger logging (`a2a_orders`).
 
 ---
 
-## 🏗️ System Architecture
+## ⚖️ "The Judge's Bar": Explainable, Bounded, Gated & Failure Handled Gracefully
+
+> **The Bar:** *"Every money action must be explainable, bounded and gated. Show the audit trail and one failure handled gracefully."*
+
+```
+                    ┌─────────────────────────────────────────────────────────────┐
+                    │               MONEY ACTION COMPLIANCE GATE                  │
+                    └──────────────────────────────┬──────────────────────────────┘
+                                                   │
+                1. EXPLAINABLE                     │ 2. BOUNDED & GATED
+       ┌───────────────────────────────┐           │           ┌───────────────────────────────┐
+       │ Itemized subtotal breakdown,  │           │           │ Client specifies ceiling:     │
+       │ promo codes applied, and      │◄──────────┴──────────►│ max_authorized_budget_inr.    │
+       │ transparent text justification│                       │ Checked strictly on backend.  │
+       └───────────────────────────────┘                       └───────────────┬───────────────┘
+                                                                               │
+                                                                               ▼
+                                                   ┌───────────────────────────────────────────┐
+                                                   │ Does Order Total <= Authorized Budget?    │
+                                                   └───────┬───────────────────────────┬───────┘
+                                                           │                           │
+                                                  YES (Pass)                  NO (Graceful Failure)
+                                                           │                           │
+                                                           ▼                           ▼
+                                            ┌─────────────────────────┐ ┌─────────────────────────┐
+                                            │ 200 OK                  │ │ 422 UNPROCESSABLE ENTITY│
+                                            │ Razorpay Intent Created │ │ BUDGET_GATING_VIOLATION │
+                                            │ Audit Ledger Recorded   │ │ Error Details Returned  │
+                                            └─────────────────────────┘ └─────────────────────────┘
+```
+
+1. **Explainable:** Every quote generated by `/protocol/v1/quote` produces a mathematical breakdown (subtotal, voucher deduction, final payable) plus an explicit narrative string explaining why the discount was awarded.
+2. **Bounded:** Machine buyers specify an explicit spending ceiling (`max_authorized_budget_inr`). The server treats this as a hard boundary.
+3. **Gated:** Checkout requests are evaluated server-side. If the order total exceeds the authorized budget, the merchant gate immediately aborts the transaction before money moves.
+4. **Failure Handled Gracefully (Demonstrated Live):**
+   * **Trigger:** An AI Buyer attempts checkout for ₹2,000 worth of items with `max_authorized_budget_inr: 500.0`.
+   * **Response:** The merchant responds with HTTP `422 Unprocessable Entity` and structured error code `BUDGET_GATING_VIOLATION`. The payload explicitly details the authorized ceiling, actual payable, and shortfall amount instead of crashing or failing silently.
+5. **Full Audit Trail:** Every transaction records Razorpay Order IDs, Payment IDs, HMAC signatures, buyer agent IDs, and itemized manifests in the persistent MongoDB `a2a_orders` and `orders` collections, visible in real time on the [Executive Admin Portal](/admin).
+
+---
+
+## 💳 Razorpay Payment Architecture (Test Mode)
+
+AURA natively integrates Razorpay across both human and agentic payment pipelines:
+
+```
+[Human Shopper] ──► /api/create-order ──► Razorpay Orders API ──► Standard Checkout Modal ──► /api/verify-payment ──► MongoDB Order
+                                                                                               (HMAC-SHA256)
+[AI Buyer Agent] ─► /protocol/v1/order/checkout ──► (Budget Gate) ──► Razorpay Order Intent ─► /protocol/v1/order/verify ─► a2a_orders Ledger
+                                                                                               (HMAC-SHA256)
+```
+
+* **Server-Side Order Creation:** `/api/create-order` creates orders via the official Razorpay SDK (`razorpay.Client`) with minimum unit validation (>= 100 paise).
+* **Client Modal Integration:** Standard Razorpay modal integration (`new Razorpay(options)`) with branded luxury gold UI theme and automatic error/dismissal handling.
+* **Cryptographic Verification:** `/api/verify-payment` verifies payment signatures using server-side HMAC-SHA256 comparison (`hmac.new(secret, order_id|payment_id, sha256)`).
+* **Machine A2A Settlement:** `/protocol/v1/order/checkout` generates compliant Razorpay payment intents for autonomous buyers, verified cryptographically via `/protocol/v1/order/verify`.
+
+---
+
+## 🔌 Technology Stack: "What" and "Why"
+
+| Technology | Role in System | Architectural "Why" |
+| :--- | :--- | :--- |
+| **FastAPI (Python 3.11)** | Core Backend & API Gateway | High-performance asynchronous runtime for non-blocking LLM token generation, Pydantic validation, and OpenAPI documentation. |
+| **LangGraph (StateGraph)** | Multi-Agent Orchestration | Provides cyclic state machines, conditional branching, clarification halts, and validation-retry feedback loops that linear chains cannot support. |
+| **Groq LPU (120B & 20B)** | Ultra-Low Latency Inference | Sub-second response times across 5 distributed API keys. Heavy `gpt-oss-120b` handles styling & intent; lightweight `gpt-oss-20b` generates Hinglish copy. |
+| **MongoDB Atlas** | Unified Data & Vector Engine | Single datastore for 44,000+ fashion documents, native cosine Vector Search, atomic message queues, and session persistence. |
+| **Voyage AI (`voyage-3-lite`)** | High-Affinity Embeddings | Remote 512-dimensional fashion embeddings via zero-dependency HTTP API. Zero PyTorch/CUDA overhead on production servers. |
+| **Reciprocal Rank Fusion (RRF)** | Hybrid Search Ranking | Merges dense vector embeddings (0.6 weight) and lexical text scores (0.4 weight) to eliminate hallucinated search misses. |
+| **Model Context Protocol (MCP)** | Agent Tool Interoperability | Open Anthropic standard allowing Claude Desktop, AutoGPT, and external LLMs to automatically discover and invoke catalog tools. |
+| **AP2 / A2A Protocol** | Agent-to-Agent Commerce Standard | Provides the financial safety envelope: bounded budget validation, itemized quotes, and machine checkout verification. |
+| **Baileys (`@whiskeysockets/baileys`)** | WhatsApp Engine Sidecar | Direct WebSocket implementation for WhatsApp multi-device. Runs on <35MB RAM without Chromium, persisting session keys in MongoDB. |
+| **Razorpay Python SDK** | Payment Infrastructure | Test-mode order creation, transaction verification, and programmatic settlement compliance. |
+
+---
+
+## ⚖️ MCP vs A2A: Why Both Are Essential
+
+A common question in agentic commerce is why two protocols exist in this architecture:
+
+```
+┌────────────────────────────────────────────────────────┐  ┌────────────────────────────────────────────────────────┐
+│           MCP (Model Context Protocol)                 │  │             A2A (Agent-to-Agent Protocol)              │
+├────────────────────────────────────────────────────────┤  ├────────────────────────────────────────────────────────┤
+│ • Focus: AI Tool Interface (Syntax & Tools)            │  │ • Focus: Financial Contracts & Safety (Semantics & ₹)  │
+│ • "What tools can this external LLM invoke?"           │  │ • "How do two software agents safely exchange money?"  │
+│ • Served at: /.well-known/mcp.json                     │  │ • Served at: /protocol/v1/...                          │
+│ • Exposes tool names, parameters, schemas for Claude   │  │ • Enforces budget limits, quotes, Razorpay settlement  │
+└────────────────────────────────────────────────────────┘  └────────────────────────────────────────────────────────┘
+```
+* **MCP gives external AI buyers the *hands* to interact with the store.**
+* **A2A gives external AI buyers the *contract, spending boundaries, and cash register* to transact safely.**
+
+---
+
+## 🏗️ System Architecture Diagram
 
 ```mermaid
 flowchart TD
@@ -68,15 +174,6 @@ flowchart TD
         WW --> WA([Patron WhatsApp Notification])
     end
 ```
-
----
-
-## 🛡️ "The Bar": Deterministic Gating, Explainability & Audit Trail
-
-1. **Strict Budget Gating**: External AI buyers specify `max_authorized_budget_inr`. If the computed order total exceeds this limit, the merchant rejects the transaction with HTTP 422 `BUDGET_GATING_VIOLATION` (failure handled gracefully).
-2. **Server-Side Price Authority**: Client-side and LLM-proposed prices are untrusted. The backend recalculates subtotals from catalog inventory and validates vouchers against `MERCHANT_PROMO_CODES`.
-3. **Budget Gap Graceful Upsell**: When a user queries a price below catalog floor (e.g. *watches under ₹1,000* when minimum is ₹4,000), the Validation Agent catches the gap, returns entry-level pieces, and politely explains the baseline in `₹`.
-4. **Complete Audit Trail**: Live Executive Admin Hub (`/admin`) displaying itemized order streams, Razorpay Payment IDs, patron lifetime spend, and A2A autonomous machine acquisitions.
 
 ---
 
@@ -139,23 +236,30 @@ AI Growth & Agentic Commerce/
 │
 └── tests/                        # Comprehensive Automated Test Suites
     ├── test_agent_protocol.py    # A2A Protocol, MCP discovery, and budget gating tests
+    ├── test_razorpay.py          # Razorpay order creation & HMAC-SHA256 signature tests
     ├── test_money_filters_and_upsell.py # INR budget filters & price gap upsell tests
     ├── test_coupon_and_automation.py    # Coupon validation & cart sync tests
     ├── test_abandoned_cart_dispatch.py  # AI copy synthesis & WhatsApp queue tests
+    ├── test_whatsapp_service.py  # Queue atomic claiming & Baileys worker tests
+    ├── test_auth.py              # PBKDF2 password hashing & cart persistence tests
     ├── test_agents.py            # End-to-end multi-agent pipeline tests
+    ├── test_dynamic_upsell.py    # AI stylist Chain-of-Thought ensemble tests
+    ├── test_campaign_agent.py    # Multichannel Hinglish copy generation tests
+    ├── test_placeholder_agent.py # Real-time prompt streaming tests
+    ├── test_health.py            # Health routes & keep-alive tests
     └── test_conversation.py      # Multi-turn conversation flow tests
 ```
 
 ---
 
-## 🛠️ REST API Reference
+## 🛠️ Complete REST API Reference
 
 ### 1. Agent-to-Agent (A2A) & MCP Endpoints
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/.well-known/agent-protocol.json` | AP2/1.0 discovery manifest with merchant capabilities and currency rate. |
-| `GET` | `/.well-known/mcp.json` | Model Context Protocol tool schema for Claude & AutoGPT. |
-| `POST` | `/protocol/v1/catalog/query` | Structured machine catalog search with price bounding. |
+| `GET` | `/.well-known/agent-protocol.json` | AP2/1.0 discovery manifest with merchant capabilities, currency, and rate. |
+| `GET` | `/.well-known/mcp.json` | Model Context Protocol tool schema for Claude Desktop & AutoGPT. |
+| `POST` | `/protocol/v1/catalog/query` | Structured machine catalog search with price bounding and category filters. |
 | `POST` | `/protocol/v1/quote` | Guaranteed quote with voucher discounts (`AURA20`) and math explainability. |
 | `POST` | `/protocol/v1/order/checkout` | **Strict Budget Gating**. Creates Razorpay order if within authorized ceiling. |
 | `POST` | `/protocol/v1/order/verify` | Validates HMAC-SHA256 signature and records A2A order with `buyer_agent_id`. |
@@ -175,9 +279,9 @@ AI Growth & Agentic Commerce/
 | `POST` | `/api/auth/signup` | Registers patron with PBKDF2-HMAC-SHA256 password hash. |
 | `POST` | `/api/auth/login` | Authenticates patron and returns active bag and wardrobe. |
 | `POST` | `/api/user/sync` | Persists cart and wardrobe state in MongoDB. |
-| `POST` | `/api/coupons/validate` | Validates promo codes (`AURA20`, `AURA25`, `VIP20`, `RUNWAY30`). |
-| `POST` | `/api/create-order` | Creates standard Razorpay order in INR. |
-| `POST` | `/api/verify-payment` | Cryptographically verifies payment signature and logs order. |
+| `POST` | `/api/coupon/validate` | Validates promo codes (`AURA20`, `AURA25`, `VIP20`, `RUNWAY30`). |
+| `POST` | `/api/create-order` | Creates standard Razorpay order in INR test mode. |
+| `POST` | `/api/verify-payment` | Cryptographically verifies Razorpay signature and logs order. |
 | `POST` | `/api/automation/abandoned-cart-campaign` | Scans MongoDB for abandoned carts and triggers WhatsApp copy dispatch. |
 
 ---
@@ -199,14 +303,14 @@ npm install
 ### 2. Configure Environment (`.env`)
 ```ini
 MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.gdjxqnz.mongodb.net/?appName=Cluster0
-DB_NAME=ecommerce
+DB_NAME=ecommerce_catalog
 COLLECTION_NAME=products
 VOYAGE_API_KEY=pa-...
 
-GROQ_API_KEY_1=gsk_...  # Query Agent
-GROQ_API_KEY_2=gsk_...  # Context & Validation Agents
-GROQ_API_KEY_3=gsk_...  # Upsell Stylist Agent
-GROQ_API_KEY_5=gsk_...  # Campaign Agent
+GROQ_API_KEY_QUERY=gsk_...       # Query Agent
+GROQ_API_KEY_CONTEXT=gsk_...     # Context & Validation Agents
+GROQ_API_KEY_UPSELL=gsk_...      # Upsell Stylist Agent
+GROQ_API_KEY_CAMPAIGN=gsk_...    # Campaign Agent
 
 RAZORPAY_KEY_ID=rzp_test_...
 RAZORPAY_KEY_SECRET=...
@@ -222,19 +326,22 @@ python server.py
 
 ## 🧪 Automated Test Verification
 
-Run the test suites to verify system correctness:
+AURA includes 13 test suites proving system correctness across payments, agents, and protocol boundaries:
 
 ```bash
-# 1. Test AI Buyer Protocol, MCP, and Budget Gating
+# 1. Test AI Buyer Protocol, MCP, and Budget Gating (Includes Failure Handling)
 python tests/test_agent_protocol.py
 
-# 2. Test INR Budget Filters & Graceful Price Gap Upsell
+# 2. Test Razorpay Order Creation & HMAC-SHA256 Signature Verification
+python tests/test_razorpay.py
+
+# 3. Test INR Budget Filters & Graceful Price Gap Upsell
 python tests/test_money_filters_and_upsell.py
 
-# 3. Test Coupon Validation & Bag Sync
+# 4. Test Coupon Validation & Bag Sync
 python tests/test_coupon_and_automation.py
 
-# 4. Simulate Autonomous AI Buyer End-to-End Purchase
+# 5. Simulate Autonomous AI Buyer End-to-End Purchase
 python scripts/ai_buyer_agent.py
 ```
 
@@ -248,4 +355,4 @@ python scripts/ai_buyer_agent.py
 ---
 
 ## 📄 License
-Developed for the **AI Growth & Agentic Commerce** Initiative. Open-source under the [MIT License](LICENSE).
+Developed for the **Razorpay AI Growth & Agentic Commerce Hackathon**. Open-source under the [MIT License](LICENSE).
